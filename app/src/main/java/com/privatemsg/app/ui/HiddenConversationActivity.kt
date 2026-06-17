@@ -25,6 +25,7 @@ import com.privatemsg.app.data.Message
 import com.privatemsg.app.data.SecureStore
 import com.privatemsg.app.data.SimHelper
 import com.privatemsg.app.databinding.ActivityConversationBinding
+import com.privatemsg.app.sms.Notifier
 import com.privatemsg.app.sms.SmsStatusReceiver
 
 /** A hidden conversation; messages live only in the private database. */
@@ -38,6 +39,7 @@ class HiddenConversationActivity : BaseActivity() {
     private var address: String = ""
     private var sims: List<SimHelper.Sim> = emptyList()
     private var simIndex: Int = 0
+    private var resumedNow = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,7 +85,14 @@ class HiddenConversationActivity : BaseActivity() {
     }
 
     private val refreshReceiver = object : BroadcastReceiver() {
-        override fun onReceive(c: Context?, i: Intent?) { loadMessages() }
+        override fun onReceive(c: Context?, i: Intent?) {
+            loadMessages()
+            // A new message arrived while the chat is open: keep it read and drop its decoy.
+            if (resumedNow) {
+                hiddenDb.markRead(address)
+                Notifier.cancelDecoy(this@HiddenConversationActivity, address)
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -164,8 +173,15 @@ class HiddenConversationActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Opening the conversation clears its unread state.
+        resumedNow = true
+        // Opening the conversation clears its unread state and removes its decoy notification.
         hiddenDb.markRead(address)
+        Notifier.cancelDecoy(this, address)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        resumedNow = false
     }
 
     private fun loadMessages() {

@@ -119,7 +119,7 @@ object Notifier {
         val text = secure.decoyTextFor(address).ifBlank { " " }
         val target = secure.decoyTargetFor(address)
         // A distinct notification per hidden number, so they don't overwrite each other.
-        val notifId = ("decoy_" + SecureStore.normalize(address)).hashCode()
+        val notifId = decoyNotifId(address)
 
         val intent = if (target.isNotBlank()) {
             Intent(context, ConversationActivity::class.java).apply {
@@ -151,5 +151,14 @@ object Notifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         notify(context, notifId, builder)
+    }
+
+    /** A distinct notification id per hidden number. */
+    private fun decoyNotifId(address: String): Int =
+        ("decoy_" + SecureStore.normalize(address)).hashCode()
+
+    /** Removes the decoy notification for a hidden number (e.g. once its chat is opened). */
+    fun cancelDecoy(context: Context, address: String) {
+        NotificationManagerCompat.from(context).cancel(decoyNotifId(address))
     }
 }

@@ -33,6 +33,10 @@ class SmsReceiver : BroadcastReceiver() {
             // and show only the decoy notification.
             HiddenDbHelper(context).insert(address, text, date, INBOX, subId)
             Notifier.showDecoy(context, secure, address)
+            // Tell an open hidden conversation to reload, so the new message shows live.
+            context.sendBroadcast(
+                Intent(SmsStatusReceiver.ACTION_HIDDEN_REFRESH).setPackage(context.packageName)
+            )
             return
         }
 
