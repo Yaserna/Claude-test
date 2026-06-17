@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="28dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="72dp"
+        android:textColor="@color/textPrimary"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/dots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:letterSpacing="0.3"
+        android:textColor="@color/accent"
+        android:textSize="28sp" />
+
+    <TextView
+        android:id="@+id/error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:minHeight="20dp"
+        android:textColor="#E53935"
+        android:textSize="13sp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="36dp"
+        android:layoutDirection="ltr"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key1" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۱" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/key2" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۲" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/key3" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۳" android:textColor="@color/textPrimary" android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key4" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۴" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/key5" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۵" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/key6" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۶" android:textColor="@color/textPrimary" android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/key7" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۷" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/key8" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۸" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/key9" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۹" android:textColor="@color/textPrimary" android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/keyBack" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="⌫" android:textColor="@color/textSecondary" android:textSize="22sp" />
+            <TextView android:id="@+id/key0" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button" android:clickable="true" android:focusable="true" android:gravity="center" android:text="۰" android:textColor="@color/textPrimary" android:textSize="24sp" />
+            <TextView android:id="@+id/keyOk" android:layout_width="0dp" android:layout_height="64dp" android:layout_weight="1" android:layout_margin="6dp" android:background="@drawable/key_button_ok" android:clickable="true" android:focusable="true" android:gravity="center" android:text="✓" android:textColor="@android:color/white" android:textSize="22sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

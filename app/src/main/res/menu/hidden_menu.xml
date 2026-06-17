@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_add"
+        android:icon="@drawable/ic_add"
+        android:title="@string/add_hidden"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_decoy"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/decoy_title"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_fingerprint"
+        android:checkable="true"
+        android:title="@string/fingerprint_unlock"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_change_pin"
+        android:title="@string/change_pin"
+        app:showAsAction="never" />
+</menu>

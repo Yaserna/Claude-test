@@ -1,0 +1,244 @@
+package com.privatemsg.app.data
+
+import android.content.ContentValues
+import android.content.Context
+import android.provider.Telephony
+
+class SmsRepository(private val context: Context) {
+
+    private val secure = SecureStore(context)
+
+    /** Normal conversations, excluding any hidden numbers. */
+    fun getConversations(): List<Conversation> {
+        val list = mutableListOf<Conversation>()
+        val seen = HashSet<Long>()
+        val hidden = secure.getHiddenNumbers()
+        val projection = arrayOf(
+            Telephony.Sms._ID,
+            Telephony.Sms.THREAD_ID,
+            Telephony.Sms.ADDRESS,
+            Telephony.Sms.BODY,
+            Telephony.Sms.DATE,
+            Telephony.Sms.READ,
+            Telephony.Sms.TYPE
+        )
+        context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI,
+            projection,
+            null,
+            null,
+            "${Telephony.Sms.DATE} DESC"
+        )?.use { c ->
+            val iThread = c.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID)
+            val iAddr = c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+            val iBody = c.getColumnIndexOrThrow(Telephony.Sms.BODY)
+            val iDate = c.getColumnIndexOrThrow(Telephony.Sms.DATE)
+            val iRead = c.getColumnIndexOrThrow(Telephony.Sms.READ)
+            val iType = c.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+            while (c.moveToNext()) {
+                val thread = c.getLong(iThread)
+                if (!seen.add(thread)) continue
+                val address = c.getString(iAddr) ?: ""
+                if (hidden.contains(SecureStore.normalize(address))) continue
+                val isInbox = c.getInt(iType) == Telephony.Sms.MESSAGE_TYPE_INBOX
+                val unread = isInbox && c.getInt(iRead) == 0
+                list.add(
+                    Conversation(
+                        threadId = thread,
+                        address = address,
+                        snippet = c.getString(iBody) ?: "",
+                        date = c.getLong(iDate),
+                        unread = unread
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    fun getMessages(threadId: Long): List<Message> {
+        val list = mutableListOf<Message>()
+        val projection = arrayOf(
+            Telephony.Sms._ID,
+            Telephony.Sms.THREAD_ID,
+            Telephony.Sms.ADDRESS,
+            Telephony.Sms.BODY,
+            Telephony.Sms.DATE,
+            Telephony.Sms.TYPE,
+            Telephony.Sms.SUBSCRIPTION_ID,
+            Telephony.Sms.STATUS
+        )
+        context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI,
+            projection,
+            "${Telephony.Sms.THREAD_ID} = ?",
+            arrayOf(threadId.toString()),
+            "${Telephony.Sms.DATE} ASC"
+        )?.use { c ->
+            val iId = c.getColumnIndexOrThrow(Telephony.Sms._ID)
+            val iAddr = c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+            val iBody = c.getColumnIndexOrThrow(Telephony.Sms.BODY)
+            val iDate = c.getColumnIndexOrThrow(Telephony.Sms.DATE)
+            val iType = c.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+            val iSub = c.getColumnIndex(Telephony.Sms.SUBSCRIPTION_ID)
+            val iStatus = c.getColumnIndex(Telephony.Sms.STATUS)
+            while (c.moveToNext()) {
+                list.add(
+                    Message(
+                        id = c.getLong(iId),
+                        threadId = threadId,
+                        address = c.getString(iAddr) ?: "",
+                        body = c.getString(iBody) ?: "",
+                        date = c.getLong(iDate),
+                        type = c.getInt(iType),
+                        subId = if (iSub >= 0) c.getInt(iSub) else -1,
+                        status = if (iStatus >= 0) c.getInt(iStatus) else -1
+                    )
+                )
+            }
+        }
+        return list
+    }
+
+    /** Stores the sent message and returns its row Uri (for status updates). */
+    fun storeSentMessage(address: String, body: String, subId: Int): android.net.Uri? {
+        val values = ContentValues().apply {
+            put(Telephony.Sms.ADDRESS, address)
+            put(Telephony.Sms.BODY, body)
+            put(Telephony.Sms.DATE, System.currentTimeMillis())
+            put(Telephony.Sms.READ, 1)
+            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
+            put(Telephony.Sms.STATUS, Telephony.Sms.STATUS_NONE)
+            if (subId >= 0) put(Telephony.Sms.SUBSCRIPTION_ID, subId)
+        }
+        return context.contentResolver.insert(Telephony.Sms.Sent.CONTENT_URI, values)
+    }
+
+    fun deleteMessage(id: Long) {
+        context.contentResolver.delete(
+            Telephony.Sms.CONTENT_URI, "${Telephony.Sms._ID} = ?", arrayOf(id.toString())
+        )
+    }
+
+    fun deleteThread(threadId: Long) {
+        context.contentResolver.delete(
+            Telephony.Sms.CONTENT_URI, "${Telephony.Sms.THREAD_ID} = ?", arrayOf(threadId.toString())
+        )
+    }
+
+    fun markThreadRead(threadId: Long) {
+        val values = ContentValues().apply { put(Telephony.Sms.READ, 1) }
+        context.contentResolver.update(
+            Telephony.Sms.CONTENT_URI, values,
+            "${Telephony.Sms.THREAD_ID} = ? AND ${Telephony.Sms.READ} = 0",
+            arrayOf(threadId.toString())
+        )
+    }
+
+    /**
+     * Move every message of [address] from the system store into the private
+     * hidden database, then delete them from the system store so the
+     * conversation disappears from everywhere outside this app.
+     */
+    fun migrateToHidden(address: String, hiddenDb: HiddenDbHelper) {
+        val target = SecureStore.normalize(address)
+        val idsToDelete = mutableListOf<Long>()
+        val projection = arrayOf(
+            Telephony.Sms._ID,
+            Telephony.Sms.ADDRESS,
+            Telephony.Sms.BODY,
+            Telephony.Sms.DATE,
+            Telephony.Sms.TYPE
+        )
+        context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI, projection, null, null,
+            "${Telephony.Sms.DATE} ASC"
+        )?.use { c ->
+            val iId = c.getColumnIndexOrThrow(Telephony.Sms._ID)
+            val iAddr = c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+            val iBody = c.getColumnIndexOrThrow(Telephony.Sms.BODY)
+            val iDate = c.getColumnIndexOrThrow(Telephony.Sms.DATE)
+            val iType = c.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+            while (c.moveToNext()) {
+                val addr = c.getString(iAddr) ?: ""
+                if (SecureStore.normalize(addr) != target) continue
+                hiddenDb.insert(
+                    addr,
+                    c.getString(iBody) ?: "",
+                    c.getLong(iDate),
+                    c.getInt(iType)
+                )
+                idsToDelete.add(c.getLong(iId))
+            }
+        }
+        for (id in idsToDelete) {
+            context.contentResolver.delete(
+                Telephony.Sms.CONTENT_URI, "${Telephony.Sms._ID} = ?", arrayOf(id.toString())
+            )
+        }
+    }
+
+    /**
+     * Safety sweep: make sure NO message from any hidden number is left in the
+     * system store. Any that are found are moved into the private hidden database
+     * and removed from the provider, so switching the default SMS app reveals
+     * no trace of hidden conversations.
+     */
+    fun purgeHiddenFromProvider(hiddenDb: HiddenDbHelper) {
+        val hidden = secure.getHiddenNumbers().map { SecureStore.normalize(it) }.toSet()
+        if (hidden.isEmpty()) return
+        val idsToDelete = mutableListOf<Long>()
+        val projection = arrayOf(
+            Telephony.Sms._ID,
+            Telephony.Sms.ADDRESS,
+            Telephony.Sms.BODY,
+            Telephony.Sms.DATE,
+            Telephony.Sms.TYPE,
+            Telephony.Sms.SUBSCRIPTION_ID
+        )
+        context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI, projection, null, null, "${Telephony.Sms.DATE} ASC"
+        )?.use { c ->
+            val iId = c.getColumnIndexOrThrow(Telephony.Sms._ID)
+            val iAddr = c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+            val iBody = c.getColumnIndexOrThrow(Telephony.Sms.BODY)
+            val iDate = c.getColumnIndexOrThrow(Telephony.Sms.DATE)
+            val iType = c.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+            val iSub = c.getColumnIndex(Telephony.Sms.SUBSCRIPTION_ID)
+            while (c.moveToNext()) {
+                val addr = c.getString(iAddr) ?: ""
+                if (SecureStore.normalize(addr) !in hidden) continue
+                hiddenDb.insert(
+                    addr,
+                    c.getString(iBody) ?: "",
+                    c.getLong(iDate),
+                    c.getInt(iType),
+                    if (iSub >= 0) c.getInt(iSub) else -1
+                )
+                idsToDelete.add(c.getLong(iId))
+            }
+        }
+        for (id in idsToDelete) {
+            context.contentResolver.delete(
+                Telephony.Sms.CONTENT_URI, "${Telephony.Sms._ID} = ?", arrayOf(id.toString())
+            )
+        }
+    }
+
+    /** Move a hidden conversation back into the visible system store. */
+    fun restoreFromHidden(address: String, hiddenDb: HiddenDbHelper) {
+        for (m in hiddenDb.getMessages(address)) {
+            val values = ContentValues().apply {
+                put(Telephony.Sms.ADDRESS, m.address)
+                put(Telephony.Sms.BODY, m.body)
+                put(Telephony.Sms.DATE, m.date)
+                put(Telephony.Sms.READ, 1)
+                put(Telephony.Sms.TYPE, m.type)
+            }
+            val uri = if (m.type == Telephony.Sms.MESSAGE_TYPE_SENT)
+                Telephony.Sms.Sent.CONTENT_URI else Telephony.Sms.Inbox.CONTENT_URI
+            context.contentResolver.insert(uri, values)
+        }
+        hiddenDb.deleteByAddress(address)
+    }
+}
