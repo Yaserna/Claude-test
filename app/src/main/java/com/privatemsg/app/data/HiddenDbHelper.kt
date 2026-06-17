@@ -21,7 +21,8 @@ class HiddenDbHelper(context: Context) :
                 "date INTEGER, " +
                 "type INTEGER, " +
                 "sub_id INTEGER DEFAULT -1, " +
-                "status INTEGER DEFAULT -1)"
+                "status INTEGER DEFAULT -1, " +
+                "read INTEGER DEFAULT 1)"
         )
     }
 
@@ -31,6 +32,10 @@ class HiddenDbHelper(context: Context) :
         }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE $TABLE ADD COLUMN status INTEGER DEFAULT -1")
+        }
+        if (oldVersion < 4) {
+            // Existing messages are considered already read.
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN read INTEGER DEFAULT 1")
         }
     }
 
@@ -43,8 +48,37 @@ class HiddenDbHelper(context: Context) :
             put("type", type)
             put("sub_id", subId)
             put("status", -1)
+            // Incoming messages start unread; everything else (sent) is read.
+            put("read", if (type == INBOX) 0 else 1)
         }
         return writableDatabase.insert(TABLE, null, values)
+    }
+
+    /** Marks every message of this address as read. */
+    fun markRead(address: String) {
+        val target = SecureStore.normalize(address)
+        val db = writableDatabase
+        db.query(TABLE, arrayOf("id", "address"), "read = 0", null, null, null, null).use { c ->
+            while (c.moveToNext()) {
+                if (SecureStore.normalize(c.getString(1) ?: "") == target) {
+                    val v = ContentValues().apply { put("read", 1) }
+                    db.update(TABLE, v, "id = ?", arrayOf(c.getLong(0).toString()))
+                }
+            }
+        }
+    }
+
+    /** True if this address has at least one unread incoming message. */
+    fun hasUnread(address: String): Boolean {
+        val target = SecureStore.normalize(address)
+        readableDatabase.query(
+            TABLE, arrayOf("address"), "read = 0 AND type = $INBOX", null, null, null, null
+        ).use { c ->
+            while (c.moveToNext()) {
+                if (SecureStore.normalize(c.getString(0) ?: "") == target) return true
+            }
+        }
+        return false
     }
 
     /** Updates the delivery status of a hidden message (0 = delivered). */
@@ -124,7 +158,8 @@ class HiddenDbHelper(context: Context) :
 
     companion object {
         private const val DB_NAME = "hidden.db"
-        private const val DB_VERSION = 3
+        private const val DB_VERSION = 4
         private const val TABLE = "hidden_sms"
+        private const val INBOX = 1
     }
 }

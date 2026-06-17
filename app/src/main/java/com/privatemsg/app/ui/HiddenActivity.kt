@@ -68,7 +68,7 @@ class HiddenActivity : BaseActivity() {
                 i.putExtra("address", conv.address)
                 startActivity(i)
             },
-            onLongClick = { conv -> confirmUnhide(conv.address) }
+            onLongClick = { conv -> showRowMenu(conv.address) }
         )
         binding.recycler.layoutManager = LinearLayoutManager(this)
         binding.recycler.adapter = adapter
@@ -93,7 +93,8 @@ class HiddenActivity : BaseActivity() {
                 threadId = 0,
                 address = address,
                 snippet = last?.body ?: getString(R.string.no_messages_yet),
-                date = last?.date ?: 0L
+                date = last?.date ?: 0L,
+                unread = hiddenDb.hasUnread(address)
             )
         }.sortedByDescending { it.date }
         adapter.submit(list)
@@ -149,6 +150,23 @@ class HiddenActivity : BaseActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun showRowMenu(address: String) {
+        val items = arrayOf(
+            getString(R.string.custom_decoy),
+            getString(R.string.unhide)
+        )
+        showListMenu(items) { which ->
+            when (which) {
+                0 -> {
+                    val i = Intent(this, DecoySettingsActivity::class.java)
+                    i.putExtra("address", address)
+                    startActivity(i)
+                }
+                1 -> confirmUnhide(address)
+            }
+        }
     }
 
     private fun confirmUnhide(address: String) {

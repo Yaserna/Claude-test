@@ -22,6 +22,9 @@ class DecoySettingsActivity : BaseActivity() {
     private lateinit var secure: SecureStore
     private var pickedTarget: String = ""
 
+    /** If set, we edit the decoy for this specific hidden number; otherwise the global one. */
+    private var perNumber: String? = null
+
     private val pickLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -45,9 +48,20 @@ class DecoySettingsActivity : BaseActivity() {
         binding.toolbar.setNavigationOnClickListener { finish() }
 
         secure = SecureStore(this)
-        binding.decoyName.setText(secure.decoyName)
-        binding.decoyText.setText(secure.decoyText)
-        pickedTarget = secure.decoyTarget
+        perNumber = intent.getStringExtra("address")?.takeIf { it.isNotBlank() }
+
+        val pn = perNumber
+        if (pn == null) {
+            binding.decoyName.setText(secure.decoyName)
+            binding.decoyText.setText(secure.decoyText)
+            pickedTarget = secure.decoyTarget
+        } else {
+            supportActionBar?.title =
+                getString(R.string.decoy_title_for, ContactsHelper(this).displayFor(pn))
+            binding.decoyName.setText(secure.decoyNameFor(pn))
+            binding.decoyText.setText(secure.decoyTextFor(pn))
+            pickedTarget = secure.decoyTargetFor(pn)
+        }
         updateTargetLabel()
 
         binding.chooseTarget.setOnClickListener {
@@ -57,9 +71,16 @@ class DecoySettingsActivity : BaseActivity() {
         }
 
         binding.save.setOnClickListener {
-            secure.decoyName = binding.decoyName.text.toString().trim()
-            secure.decoyText = binding.decoyText.text.toString().trim()
-            secure.decoyTarget = pickedTarget
+            val name = binding.decoyName.text.toString().trim()
+            val text = binding.decoyText.text.toString().trim()
+            val pn2 = perNumber
+            if (pn2 == null) {
+                secure.decoyName = name
+                secure.decoyText = text
+                secure.decoyTarget = pickedTarget
+            } else {
+                secure.setDecoyFor(pn2, name, text, pickedTarget)
+            }
             Toast.makeText(this, R.string.saved, Toast.LENGTH_SHORT).show()
             finish()
         }

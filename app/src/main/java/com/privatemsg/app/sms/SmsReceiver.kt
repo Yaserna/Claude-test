@@ -32,7 +32,7 @@ class SmsReceiver : BroadcastReceiver() {
             // Hidden sender: store privately, never touch the system store,
             // and show only the decoy notification.
             HiddenDbHelper(context).insert(address, text, date, INBOX, subId)
-            Notifier.showDecoy(context, secure)
+            Notifier.showDecoy(context, secure, address)
             return
         }
 

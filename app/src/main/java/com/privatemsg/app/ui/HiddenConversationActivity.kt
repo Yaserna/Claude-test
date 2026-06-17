@@ -162,6 +162,12 @@ class HiddenConversationActivity : BaseActivity() {
         if (adapter.selectionMode) adapter.exitSelection() else super.onBackPressed()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Opening the conversation clears its unread state.
+        hiddenDb.markRead(address)
+    }
+
     private fun loadMessages() {
         adapter.submit(hiddenDb.getMessages(address))
         binding.recycler.scrollToPosition(adapter.itemCount - 1)

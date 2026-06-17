@@ -20,7 +20,6 @@ import com.privatemsg.app.ui.MainActivity
 object Notifier {
 
     private const val CHANNEL_ID = "incoming_sms"
-    private const val DECOY_ID = 424242
 
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -112,12 +111,15 @@ object Notifier {
      * and fake text, and tapping it opens the chosen innocent conversation
      * (never the hidden section).
      */
-    fun showDecoy(context: Context, secure: SecureStore) {
+    fun showDecoy(context: Context, secure: SecureStore, address: String) {
         ensureChannel(context)
 
-        val name = secure.decoyName.ifBlank { context.getString(R.string.app_name) }
-        val text = secure.decoyText.ifBlank { " " }
-        val target = secure.decoyTarget
+        // Each hidden number can have its own decoy (falls back to the global one).
+        val name = secure.decoyNameFor(address).ifBlank { context.getString(R.string.app_name) }
+        val text = secure.decoyTextFor(address).ifBlank { " " }
+        val target = secure.decoyTargetFor(address)
+        // A distinct notification per hidden number, so they don't overwrite each other.
+        val notifId = ("decoy_" + SecureStore.normalize(address)).hashCode()
 
         val intent = if (target.isNotBlank()) {
             Intent(context, ConversationActivity::class.java).apply {
@@ -135,7 +137,7 @@ object Notifier {
         }
 
         val pi = PendingIntent.getActivity(
-            context, 1, intent,
+            context, notifId, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -148,6 +150,6 @@ object Notifier {
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
-        notify(context, DECOY_ID, builder)
+        notify(context, notifId, builder)
     }
 }

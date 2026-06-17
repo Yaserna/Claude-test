@@ -46,6 +46,46 @@ class SecureStore(context: Context) {
         get() = prefs.getString(KEY_DECOY_TARGET, "") ?: ""
         set(v) = prefs.edit().putString(KEY_DECOY_TARGET, v).apply()
 
+    // ---- Per-number decoy (overrides the global decoy for that one number) ----
+
+    /** Fake sender name for this number; falls back to the global decoy name. */
+    fun decoyNameFor(address: String): String =
+        prefs.getString(KEY_DECOY_NAME + "_" + normalize(address), null) ?: decoyName
+
+    /** Fake message text for this number; falls back to the global decoy text. */
+    fun decoyTextFor(address: String): String =
+        prefs.getString(KEY_DECOY_TEXT + "_" + normalize(address), null) ?: decoyText
+
+    /** Conversation opened when this number's decoy is tapped; falls back to global. */
+    fun decoyTargetFor(address: String): String =
+        prefs.getString(KEY_DECOY_TARGET + "_" + normalize(address), null) ?: decoyTarget
+
+    /** True if this number has its own decoy notification configured. */
+    fun hasCustomDecoy(address: String): Boolean {
+        val n = normalize(address)
+        return prefs.contains(KEY_DECOY_NAME + "_" + n) ||
+            prefs.contains(KEY_DECOY_TEXT + "_" + n) ||
+            prefs.contains(KEY_DECOY_TARGET + "_" + n)
+    }
+
+    fun setDecoyFor(address: String, name: String, text: String, target: String) {
+        val n = normalize(address)
+        prefs.edit()
+            .putString(KEY_DECOY_NAME + "_" + n, name)
+            .putString(KEY_DECOY_TEXT + "_" + n, text)
+            .putString(KEY_DECOY_TARGET + "_" + n, target)
+            .apply()
+    }
+
+    fun clearDecoyFor(address: String) {
+        val n = normalize(address)
+        prefs.edit()
+            .remove(KEY_DECOY_NAME + "_" + n)
+            .remove(KEY_DECOY_TEXT + "_" + n)
+            .remove(KEY_DECOY_TARGET + "_" + n)
+            .apply()
+    }
+
     // ---- Hidden numbers ----
 
     fun getHiddenNumbers(): Set<String> =
@@ -62,6 +102,8 @@ class SecureStore(context: Context) {
         val target = normalize(number)
         val set = getHiddenNumbers().filterNot { normalize(it) == target }.toSet()
         prefs.edit().putStringSet(KEY_HIDDEN, set).apply()
+        // Drop any custom decoy that belonged to this number.
+        clearDecoyFor(number)
     }
 
     fun isHidden(address: String): Boolean {

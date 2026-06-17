@@ -48,6 +48,8 @@
     <string name="not_set">تعیین نشده</string>
     <string name="unhide">نمایش دوباره</string>
     <string name="unhide_msg">این گفتگو به لیست اصلی برگردد؟</string>
+    <string name="custom_decoy">اعلان اختصاصی</string>
+    <string name="decoy_title_for">اعلان: %1$s</string>
 
     <string name="pin_create">یک رمز برای بخش مخفی بسازید</string>
     <string name="pin_enter">رمز را وارد کنید</string>
