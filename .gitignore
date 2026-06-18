@@ -1,0 +1,12 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+/app/build
+# AAR موتور را اگر نمی‌خواهی commit شود، این خط را فعال کن:
+# /app/libs/*.aar

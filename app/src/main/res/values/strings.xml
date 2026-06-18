@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">InfinityClone</string>
+
+    <string name="add_clone">کلون جدید</string>
+    <string name="pick_app_title">انتخاب اپ برای کلون</string>
+    <string name="remove">حذف</string>
+    <string name="app_icon">آیکن اپ</string>
+
+    <string name="empty_state">هنوز کلونی نساخته‌ای.\nبا دکمه‌ی «کلون جدید» شروع کن.</string>
+    <string name="clone_subtitle">%1$s · فضای %2$d</string>
+
+    <string name="clone_created">کلون «%1$s» ساخته شد</string>
+    <string name="clone_removed">کلون «%1$s» حذف شد</string>
+    <string name="clone_failed">ساخت کلون ناموفق بود</string>
+
+    <string name="engine_disabled">موتور مجازی‌سازی فعال نیست (AAR اضافه نشده)</string>
+    <string name="engine_warning">⚠️ موتور واقعی اضافه نشده است؛ کلون‌ها کار نمی‌کنند. برای فعال‌سازی به README مراجعه کن.</string>
+</resources>
