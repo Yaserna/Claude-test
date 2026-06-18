@@ -5,14 +5,21 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.infinityclone.app.R
 import com.infinityclone.app.core.CloneInfo
 import com.infinityclone.app.core.Engine
 import com.infinityclone.app.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * صفحه‌ی اصلی: فهرست کلون‌های ساخته‌شده + دکمه‌ی افزودن کلون جدید.
+ *
+ * همه‌ی تماس‌های موتور (لیست/اجرا/حذف) روی نخ پس‌زمینه انجام می‌شوند تا رابط
+ * کاربری هرگز فریز نشود.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -25,7 +32,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         adapter = CloneAdapter(
-            onClick = { clone -> Engine.instance.launchClone(clone.packageName, clone.userId) },
+            onClick = { clone -> launchClone(clone) },
             onRemove = { clone -> removeClone(clone) },
         )
         binding.cloneList.layoutManager = LinearLayoutManager(this)
@@ -46,14 +53,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refresh() {
-        val clones = Engine.instance.listClones()
-        adapter.submit(clones)
-        binding.emptyState.visibility = if (clones.isEmpty()) View.VISIBLE else View.GONE
+        lifecycleScope.launch {
+            val clones = withContext(Dispatchers.IO) { Engine.instance.listClones() }
+            adapter.submit(clones)
+            binding.emptyState.visibility = if (clones.isEmpty()) View.VISIBLE else View.GONE
+        }
+    }
+
+    private fun launchClone(clone: CloneInfo) {
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                Engine.instance.launchClone(clone.packageName, clone.userId)
+            }
+        }
     }
 
     private fun removeClone(clone: CloneInfo) {
-        Engine.instance.removeClone(clone.packageName, clone.userId)
-        Toast.makeText(this, getString(R.string.clone_removed, clone.label), Toast.LENGTH_SHORT).show()
-        refresh()
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { Engine.instance.removeClone(clone.packageName, clone.userId) }
+            Toast.makeText(
+                this@MainActivity,
+                getString(R.string.clone_removed, clone.label),
+                Toast.LENGTH_SHORT
+            ).show()
+            refresh()
+        }
     }
 }

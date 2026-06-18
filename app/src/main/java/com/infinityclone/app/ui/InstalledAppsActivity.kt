@@ -74,14 +74,30 @@ class InstalledAppsActivity : AppCompatActivity() {
             .toList()
     }
 
+    private var cloning = false
+
     private fun cloneApp(app: InstalledApp) {
-        val userId = Engine.instance.createClone(app.packageName)
-        if (userId >= 0) {
-            Toast.makeText(this, getString(R.string.clone_created, app.label), Toast.LENGTH_SHORT).show()
-            finish()
-        } else {
-            val msg = if (Engine.instance.isReady) R.string.clone_failed else R.string.engine_disabled
-            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+        if (cloning) return
+        cloning = true
+        // ساخت کلون سنگین است؛ روی نخ پس‌زمینه انجام می‌شود تا رابط کاربری فریز نشود.
+        binding.progress.visibility = View.VISIBLE
+        binding.appList.isEnabled = false
+        lifecycleScope.launch {
+            val userId = withContext(Dispatchers.IO) { Engine.instance.createClone(app.packageName) }
+            binding.progress.visibility = View.GONE
+            binding.appList.isEnabled = true
+            cloning = false
+            if (userId >= 0) {
+                Toast.makeText(
+                    this@InstalledAppsActivity,
+                    getString(R.string.clone_created, app.label),
+                    Toast.LENGTH_SHORT
+                ).show()
+                finish()
+            } else {
+                val msg = if (Engine.instance.isReady) R.string.clone_failed else R.string.engine_disabled
+                Toast.makeText(this@InstalledAppsActivity, msg, Toast.LENGTH_LONG).show()
+            }
         }
     }
 }
