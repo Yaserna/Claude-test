@@ -13,6 +13,11 @@
     <string name="clone_created">کلون «%1$s» ساخته شد</string>
     <string name="clone_removed">کلون «%1$s» حذف شد</string>
     <string name="clone_failed">ساخت کلون ناموفق بود</string>
+    <string name="clone_timeout">ساخت کلون «%1$s» بیش از حد طول کشید و متوقف شد. لاگ زیر را برای عیب‌یابی بفرست.</string>
+
+    <string name="diag_title">گزارش تشخیص</string>
+    <string name="share">اشتراک‌گذاری</string>
+    <string name="close">بستن</string>
 
     <string name="engine_disabled">موتور مجازی‌سازی فعال نیست (AAR اضافه نشده)</string>
     <string name="engine_warning">⚠️ موتور واقعی اضافه نشده است؛ کلون‌ها کار نمی‌کنند. برای فعال‌سازی به README مراجعه کن.</string>

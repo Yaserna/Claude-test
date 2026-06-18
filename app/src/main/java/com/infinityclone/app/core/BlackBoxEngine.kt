@@ -40,6 +40,7 @@ class BlackBoxEngine : CloneEngine {
 
     // ── عملیات کلون ─────────────────────────────────────────────────
     override fun listClones(): List<CloneInfo> {
+        ensureServices()
         val pm = BlackBoxCore.getPackageManager()
         val result = mutableListOf<CloneInfo>()
         for (user in core.users) {
@@ -55,6 +56,7 @@ class BlackBoxEngine : CloneEngine {
     }
 
     override fun createClone(packageName: String): Int {
+        ensureServices()
         val userId = nextFreeUserId(packageName)
         // اگر فضای مجازی موردنظر وجود ندارد، ساخته شود.
         if (core.users.none { it.id == userId }) {
@@ -79,6 +81,16 @@ class BlackBoxEngine : CloneEngine {
     }
 
     /**
+     * مطمئن می‌شود سرویس داخلی موتور راه‌اندازی شده است. این فراخوانی، init را
+     * به‌صورت قطعی روی همین نخ (پس‌زمینه) انجام می‌دهد تا عملیات بعدی روی یک
+     * سرویسِ آماده اجرا شوند.
+     */
+    private fun ensureServices() {
+        runCatching { core.areServicesAvailable() }
+            .onFailure { Log.e(TAG, "areServicesAvailable: ${it.message}") }
+    }
+
+    /**
      * کوچک‌ترین userId که این پکیج در آن نصب نیست را پیدا می‌کند.
      * این همان چیزی است که «کلون نامحدود» را ممکن می‌کند: هر بار یک فضای جدید.
      */
@@ -89,10 +101,13 @@ class BlackBoxEngine : CloneEngine {
     }
 
     // ── پیکربندی موتور ──────────────────────────────────────────────
+    // مقادیر مطابق پیش‌فرض امن اپ نمونه. به‌خصوص daemon=false مهم است:
+    // اندروید ۱۲ شروع سرویس foreground از پس‌زمینه را محدود می‌کند و فعال‌بودنش
+    // می‌تواند نصب کلون را به گیر بیندازد.
     private val config = object : ClientConfiguration() {
         override fun getHostPackageName(): String = HOST_PACKAGE
-        override fun isHideRoot(): Boolean = true
-        override fun isEnableDaemonService(): Boolean = true
+        override fun isHideRoot(): Boolean = false
+        override fun isEnableDaemonService(): Boolean = false
     }
 
     private companion object {
