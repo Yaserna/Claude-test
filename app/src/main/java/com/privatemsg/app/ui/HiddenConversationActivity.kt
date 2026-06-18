@@ -58,12 +58,15 @@ class HiddenConversationActivity : BaseActivity() {
 
         setupSim()
         val slotMap = sims.associate { it.subId to it.slot }
+        val colorStore = SecureStore(this)
         adapter = MessageAdapter(
             showSim = sims.size >= 2,
             slotForSub = { subId -> slotMap[subId] },
             onLongClick = { showMessageMenu(it) },
             onNumberClick = { showNumberMenu(it) },
-            onSelectionChanged = { updateSelectionUi() }
+            onSelectionChanged = { updateSelectionUi() },
+            sentColor = colorStore.sentBubbleColor,
+            receivedColor = colorStore.receivedBubbleColor
         )
         binding.recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.recycler.adapter = adapter

@@ -26,6 +26,12 @@
     <string name="size_normal">متوسط</string>
     <string name="size_large">بزرگ</string>
     <string name="size_xlarge">خیلی بزرگ</string>
+    <string name="section_bubbles">رنگ حباب پیام‌ها</string>
+    <string name="bubble_sent_color">رنگ پیام‌های ارسالی</string>
+    <string name="bubble_received_color">رنگ پیام‌های دریافتی</string>
+    <string name="bubble_color_summary">رنگ پس‌زمینه‌ی حباب‌ها را انتخاب کنید</string>
+    <string name="pick_color">انتخاب رنگ</string>
+
     <string name="section_about">درباره</string>
     <string name="credit">کد نویسی شده توسط Yaser D.z</string>
     <string name="sim_label">سیم %1$d</string>

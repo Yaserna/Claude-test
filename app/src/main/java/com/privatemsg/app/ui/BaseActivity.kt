@@ -42,6 +42,13 @@ abstract class BaseActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // If the hidden section was locked (app went to background), any hidden
+        // screen that somehow survived must close itself immediately on return,
+        // so the back button can never re-enter it.
+        if (leavesToMainOnBackground && hiddenLocked) {
+            finish()
+            return
+        }
         // If the display size changed elsewhere, rebuild this screen to apply it.
         val prefs = getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
         if (prefs.getFloat("font_scale", 1f) != appliedFontScale ||
@@ -58,17 +65,26 @@ abstract class BaseActivity : AppCompatActivity() {
         super.onStop()
         if (leavesToMainOnBackground) {
             // Check after the lifecycle settles: if the whole app went to the
-            // background (home, app switch, screen lock), leave the hidden section.
+            // background (home, app switch, screen lock), lock the hidden section
+            // and finish this screen. We simply finish (never re-launch Main) so no
+            // duplicate/stale activities are ever left behind in the back stack.
             window.decorView.post {
                 if (!isFinishing && !App.inForeground) {
-                    startActivity(
-                        Intent(this, MainActivity::class.java)
-                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    )
+                    hiddenLocked = true
                     finish()
                 }
             }
         }
+    }
+
+    companion object {
+        /**
+         * True once the app was backgrounded while inside the hidden section. It is
+         * cleared only after a successful PIN/fingerprint unlock (PinActivity), so a
+         * stray hidden activity can never be reached again with the back button.
+         */
+        @Volatile
+        var hiddenLocked: Boolean = false
     }
 
     /** Menu shown when a number (phone / card / OTP) inside a message is tapped. */

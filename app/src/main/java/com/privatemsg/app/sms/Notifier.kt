@@ -20,6 +20,9 @@ import com.privatemsg.app.ui.MainActivity
 object Notifier {
 
     private const val CHANNEL_ID = "incoming_sms"
+    // Separate channel for decoy notifications: vibrate but NO sound, so a hidden
+    // message never makes an audible alert (only the real ones do).
+    private const val DECOY_CHANNEL_ID = "decoy_sms_silent"
 
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -28,10 +31,47 @@ object Notifier {
                 "Messages",
                 NotificationManager.IMPORTANCE_HIGH
             )
+            channel.enableVibration(true)
             context.getSystemService(NotificationManager::class.java)
                 .createNotificationChannel(channel)
         }
     }
+
+    /** Channel for decoy notifications: vibration on, sound off. */
+    private fun ensureDecoyChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                DECOY_CHANNEL_ID,
+                "Messages",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            channel.setSound(null, null)   // no sound
+            channel.enableVibration(true)  // vibration only
+            context.getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
+        }
+    }
+
+    /**
+     * The colored app icon as a bitmap, used as the notification's large icon so
+     * the notification always shows the orange Mi-style icon instead of a flat
+     * white silhouette (some launchers render the white small-icon as the app icon).
+     */
+    private fun appLargeIcon(context: Context): android.graphics.Bitmap? {
+        val d = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_launcher)
+            ?: return null
+        val size = (48 * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        val bmp = android.graphics.Bitmap.createBitmap(
+            size, size, android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bmp)
+        d.setBounds(0, 0, size, size)
+        d.draw(canvas)
+        return bmp
+    }
+
+    private fun accentColor(context: Context): Int =
+        androidx.core.content.ContextCompat.getColor(context, R.color.accent)
 
     private fun notify(context: Context, id: Int, builder: NotificationCompat.Builder) {
         try {
@@ -95,6 +135,8 @@ object Notifier {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_message)
+            .setLargeIcon(appLargeIcon(context))
+            .setColor(accentColor(context))
             .setStyle(style)
             .setAutoCancel(true)
             .setContentIntent(tapPi)
@@ -103,7 +145,17 @@ object Notifier {
             .addAction(R.drawable.ic_mark_read, context.getString(R.string.notif_mark_read), readPi)
             .addAction(R.drawable.ic_delete, context.getString(R.string.notif_delete), deletePi)
 
+        // On pre-O devices the channel doesn't exist; ask for sound + vibration here.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
+        }
+
         notify(context, notifId, builder)
+    }
+
+    /** Removes the real notification for a normal sender (e.g. when its chat is opened). */
+    fun cancelIncoming(context: Context, address: String) {
+        NotificationManagerCompat.from(context).cancel(address.hashCode())
     }
 
     /**
@@ -112,7 +164,7 @@ object Notifier {
      * (never the hidden section).
      */
     fun showDecoy(context: Context, secure: SecureStore, address: String) {
-        ensureChannel(context)
+        ensureDecoyChannel(context)
 
         // Each hidden number can have its own decoy (falls back to the global one).
         val name = secure.decoyNameFor(address).ifBlank { context.getString(R.string.app_name) }
@@ -141,14 +193,21 @@ object Notifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, DECOY_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_message)
+            .setLargeIcon(appLargeIcon(context))
+            .setColor(accentColor(context))
             .setContentTitle(name)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+        // On pre-O devices the channel doesn't apply; vibrate but stay silent here.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE).setSound(null)
+        }
 
         notify(context, notifId, builder)
     }

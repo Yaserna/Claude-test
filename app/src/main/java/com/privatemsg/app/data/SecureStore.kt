@@ -148,6 +148,18 @@ class SecureStore(context: Context) {
         get() = prefs.getBoolean(KEY_FINGERPRINT, false)
         set(v) = prefs.edit().putBoolean(KEY_FINGERPRINT, v).apply()
 
+    // ---- Bubble colors ----
+
+    /** Background color of messages I send (default Mi green). */
+    var sentBubbleColor: Int
+        get() = prefs.getInt(KEY_SENT_COLOR, DEFAULT_SENT_COLOR)
+        set(v) = prefs.edit().putInt(KEY_SENT_COLOR, v).apply()
+
+    /** Background color of messages I receive (default Mi grey). */
+    var receivedBubbleColor: Int
+        get() = prefs.getInt(KEY_RECEIVED_COLOR, DEFAULT_RECEIVED_COLOR)
+        set(v) = prefs.edit().putInt(KEY_RECEIVED_COLOR, v).apply()
+
     // ---- Per-conversation preferred SIM ----
 
     fun getThreadSim(address: String): Int =
@@ -170,6 +182,12 @@ class SecureStore(context: Context) {
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_UI_SCALE = "ui_scale"
         private const val KEY_FINGERPRINT = "fingerprint_unlock"
+        private const val KEY_SENT_COLOR = "sent_bubble_color"
+        private const val KEY_RECEIVED_COLOR = "received_bubble_color"
+
+        /** Default sent bubble = Mi green; received = Mi grey pill. */
+        const val DEFAULT_SENT_COLOR = 0xFF1FA055.toInt()
+        const val DEFAULT_RECEIVED_COLOR = 0xFF2C2C2E.toInt()
 
         /**
          * Normalize an address for matching.

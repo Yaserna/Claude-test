@@ -43,6 +43,84 @@ class SettingsActivity : BaseActivity() {
         binding.uiSizeRow.setOnClickListener {
             pickScale(R.string.ui_size, secure.uiScale) { secure.uiScale = it }
         }
+
+        // Bubble colors.
+        setSwatch(binding.sentColorSwatch, secure.sentBubbleColor)
+        binding.sentColorRow.setOnClickListener {
+            pickColor(secure.sentBubbleColor) { c ->
+                secure.sentBubbleColor = c
+                setSwatch(binding.sentColorSwatch, c)
+            }
+        }
+        setSwatch(binding.receivedColorSwatch, secure.receivedBubbleColor)
+        binding.receivedColorRow.setOnClickListener {
+            pickColor(secure.receivedBubbleColor) { c ->
+                secure.receivedBubbleColor = c
+                setSwatch(binding.receivedColorSwatch, c)
+            }
+        }
+    }
+
+    /** A palette of preset bubble colors offered in the picker. */
+    private val palette = intArrayOf(
+        0xFF1FA055.toInt(), // green (default sent)
+        0xFF1A73E8.toInt(), // blue
+        0xFFF7A623.toInt(), // orange
+        0xFF8E44AD.toInt(), // purple
+        0xFFE53935.toInt(), // red
+        0xFF009688.toInt(), // teal
+        0xFFE91E63.toInt(), // pink
+        0xFF795548.toInt(), // brown
+        0xFF455A64.toInt(), // blue-grey
+        0xFF2C2C2E.toInt(), // grey (default received)
+        0xFF3A3A3C.toInt(), // light grey
+        0xFF000000.toInt()  // black
+    )
+
+    private fun setSwatch(view: android.view.View, color: Int) {
+        val d = android.graphics.drawable.GradientDrawable()
+        d.shape = android.graphics.drawable.GradientDrawable.OVAL
+        d.setColor(color)
+        d.setStroke((1 * resources.displayMetrics.density).toInt(), 0xFF666666.toInt())
+        view.background = d
+    }
+
+    /** Shows a grid of color circles; calls [onPick] with the chosen color. */
+    private fun pickColor(current: Int, onPick: (Int) -> Unit) {
+        val density = resources.displayMetrics.density
+        val cell = (56 * density).toInt()
+        val dot = (40 * density).toInt()
+        val grid = android.widget.GridLayout(this).apply {
+            columnCount = 4
+            val p = (12 * density).toInt()
+            setPadding(p, p, p, p)
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.pick_color)
+            .setView(grid)
+            .create()
+        for (color in palette) {
+            val circle = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(color)
+                if (color == current) setStroke((3 * density).toInt(), 0xFFFFFFFF.toInt())
+                else setStroke((1 * density).toInt(), 0xFF666666.toInt())
+            }
+            val v = android.view.View(this).apply {
+                background = circle
+                layoutParams = android.widget.GridLayout.LayoutParams().apply {
+                    width = dot
+                    height = dot
+                    setMargins((cell - dot) / 2, (cell - dot) / 2, (cell - dot) / 2, (cell - dot) / 2)
+                }
+                setOnClickListener {
+                    onPick(color)
+                    dialog.dismiss()
+                }
+            }
+            grid.addView(v)
+        }
+        dialog.show()
     }
 
     private fun nearestIndex(value: Float): Int {

@@ -15,7 +15,9 @@ class MessageAdapter(
     private val slotForSub: (Int) -> Int? = { null },
     private val onLongClick: (Message) -> Unit = {},
     private val onNumberClick: (String) -> Unit = {},
-    private val onSelectionChanged: () -> Unit = {}
+    private val onSelectionChanged: () -> Unit = {},
+    private val sentColor: Int = com.privatemsg.app.data.SecureStore.DEFAULT_SENT_COLOR,
+    private val receivedColor: Int = com.privatemsg.app.data.SecureStore.DEFAULT_RECEIVED_COLOR
 ) : RecyclerView.Adapter<MessageAdapter.VH>() {
 
     private val items = mutableListOf<Message>()
@@ -75,24 +77,28 @@ class MessageAdapter(
         val failed = m.type == FAILED
         val ctx = holder.itemView.context
 
+        val bubbleColor = if (sent) sentColor else receivedColor
         Linkifier.apply(holder.binding.text, m.body.toLatinDigits(), onNumberClick)
-        holder.binding.bubble.setBackgroundResource(
-            if (sent) R.drawable.bubble_sent else R.drawable.bubble_received
-        )
+        holder.binding.bubble.background = bubbleBackground(ctx, bubbleColor)
+        // Keep the message text readable whatever color the bubble is.
+        val onBubble = if (isLight(bubbleColor)) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
+        holder.binding.text.setTextColor(onBubble)
         // Sent messages on the right (START in RTL), received on the left (END).
         (holder.binding.root as LinearLayout).gravity =
             if (sent) Gravity.START else Gravity.END
 
         val delivered = sent && m.status == 0
 
-        // Time: black for sent, light grey for received. Always stays black for sent.
+        // Time: a muted shade of the readable color, so it stays legible on any bubble.
         // Force Latin (English) digits even though the app locale is Persian.
         holder.binding.time.text = android.text.format.DateUtils.formatDateTime(
             ctx, m.date, android.text.format.DateUtils.FORMAT_SHOW_TIME
         ).toLatinDigits()
-        holder.binding.time.setTextColor(if (sent) 0xFF000000.toInt() else 0xFFCFCFCF.toInt())
+        holder.binding.time.setTextColor(
+            if (isLight(bubbleColor)) 0xFF555555.toInt() else 0xFFCFCFCF.toInt()
+        )
 
-        // Status ticks for sent messages: red ✕ = failed, blue ✓✓ = delivered, black ✓ = sent.
+        // Status ticks for sent messages: red ✕ = failed, blue ✓✓ = delivered, plain ✓ = sent.
         if (sent) {
             holder.binding.ticks.text = when {
                 failed -> "✕"
@@ -103,7 +109,7 @@ class MessageAdapter(
                 when {
                     failed -> 0xFFE53935.toInt()
                     delivered -> 0xFF1A73E8.toInt()
-                    else -> 0xFF000000.toInt()
+                    else -> onBubble
                 }
             )
             holder.binding.ticks.visibility = View.VISIBLE
@@ -149,6 +155,23 @@ class MessageAdapter(
     }
 
     override fun getItemCount() = items.size
+
+    /** A rounded (18dp) solid-color bubble background, built from the chosen color. */
+    private fun bubbleBackground(ctx: android.content.Context, color: Int): android.graphics.drawable.GradientDrawable {
+        val d = android.graphics.drawable.GradientDrawable()
+        d.cornerRadius = 18f * ctx.resources.displayMetrics.density
+        d.setColor(color)
+        return d
+    }
+
+    /** True if a color is light enough that black text reads better than white. */
+    private fun isLight(color: Int): Boolean {
+        val r = (color shr 16) and 0xFF
+        val g = (color shr 8) and 0xFF
+        val b = color and 0xFF
+        // Perceived luminance (0..255).
+        return (0.299 * r + 0.587 * g + 0.114 * b) > 150
+    }
 
     companion object {
         private const val INBOX = 1   // Telephony.Sms.MESSAGE_TYPE_INBOX

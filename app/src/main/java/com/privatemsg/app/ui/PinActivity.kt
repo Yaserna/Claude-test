@@ -105,6 +105,8 @@ class PinActivity : BaseActivity() {
     }
 
     private fun openHidden() {
+        // A successful unlock re-opens the hidden section.
+        BaseActivity.hiddenLocked = false
         startActivity(Intent(this, HiddenActivity::class.java))
         finish()
     }
