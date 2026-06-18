@@ -18,6 +18,10 @@ class BlackBoxEngine : CloneEngine {
 
     override val isReady: Boolean = true
 
+    @Volatile
+    private var step: String = "—"
+    override val lastStep: String get() = step
+
     // ── چرخه‌ی عمر ──────────────────────────────────────────────────
     override fun attach(app: Application, base: Context) {
         runCatching { core.closeCodeInit() }
@@ -56,14 +60,19 @@ class BlackBoxEngine : CloneEngine {
     }
 
     override fun createClone(packageName: String): Int {
+        step = "۱) آماده‌سازی سرویس موتور"
         ensureServices()
+        step = "۲) یافتن فضای آزاد"
         val userId = nextFreeUserId(packageName)
         // اگر فضای مجازی موردنظر وجود ندارد، ساخته شود.
         if (core.users.none { it.id == userId }) {
+            step = "۳) ساخت فضای کاربری $userId"
             runCatching { core.createUser(userId) }
-                .onFailure { Log.e(TAG, "createUser($userId): ${it.message}"); return -1 }
+                .onFailure { Log.e(TAG, "createUser($userId): ${it.message}"); step = "خطا در ساخت فضا"; return -1 }
         }
+        step = "۴) نصب کلون در فضای $userId"
         val res = runCatching { core.installPackageAsUser(packageName, userId) }.getOrNull()
+        step = if (res != null && res.success) "۵) پایان موفق" else "۵) نصب ناموفق"
         return if (res != null && res.success) userId else -1
     }
 

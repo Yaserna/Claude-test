@@ -114,8 +114,9 @@ class InstalledAppsActivity : AppCompatActivity() {
 
     /** پنجره‌ی تشخیص: پیام + لاگ موتور، با امکان اشتراک‌گذاری برای عیب‌یابی. */
     private fun showDiagnostics(message: String) {
+        val step = Engine.instance.lastStep
         val logs = captureLogs()
-        val body = "$message\n\n──────── لاگ موتور ────────\n$logs"
+        val body = "$message\n\n▶ آخرین مرحله‌ی موتور: $step\n\n──────── لاگ موتور ────────\n$logs"
         AlertDialog.Builder(this)
             .setTitle(R.string.diag_title)
             .setMessage(body)

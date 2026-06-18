@@ -26,6 +26,9 @@ interface CloneEngine {
     /** آیا موتور واقعی فعال است؟ */
     val isReady: Boolean
 
+    /** آخرین مرحله‌ای که عملیات به آن رسیده (برای تشخیص محل گیرکردن). */
+    val lastStep: String
+
     // ── چرخه‌ی عمر (از CloneApplication صدا زده می‌شود) ────────────────
     fun attach(app: Application, base: Context)
     fun onCreate()

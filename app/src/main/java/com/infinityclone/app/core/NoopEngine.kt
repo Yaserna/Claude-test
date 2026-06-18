@@ -11,6 +11,7 @@ import android.util.Log
 class NoopEngine : CloneEngine {
 
     override val isReady: Boolean = false
+    override val lastStep: String = "—"
 
     override fun attach(app: Application, base: Context) {
         Log.w(TAG, "NoopEngine — موتور واقعی غیرفعال است.")
