@@ -1,6 +1,13 @@
 pluginManagement {
     repositories {
-        google()
+        maven { url = uri("https://www.jitpack.io") }
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -9,12 +16,15 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
+        maven { url = uri("https://www.jitpack.io") }
         google()
         mavenCentral()
-        // محل قرارگیری AAR موتور مجازی‌سازی (NewBlackbox)
-        flatDir { dirs("app/libs") }
     }
 }
 
 rootProject.name = "InfinityClone"
+
 include(":app")
+include(":Bcore")
+include(":black-reflection")
+include(":compiler")

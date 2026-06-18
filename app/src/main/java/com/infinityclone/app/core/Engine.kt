@@ -3,12 +3,9 @@ package com.infinityclone.app.core
 /**
  * تنها نقطه‌ی دسترسی به موتور در کل اپ.
  *
- * برای فعال‌سازی موتور واقعی بعد از افزودن AAR:
- *   1. فایل engine-impl/BlackBoxEngine.kt را طبق README وارد سورس کن.
- *   2. مقدار [instance] را به `BlackBoxEngine()` تغییر بده.
+ * موتور واقعی BlackBox فعال است. برای دیباگِ UI بدون موتور، می‌توان موقتاً
+ * مقدار را به NoopEngine() تغییر داد.
  */
 object Engine {
-
-    // TODO(موتور): بعد از افزودن AAR به BlackBoxEngine() تغییر بده.
-    val instance: CloneEngine = NoopEngine()
+    val instance: CloneEngine = BlackBoxEngine()
 }

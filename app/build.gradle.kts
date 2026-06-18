@@ -1,25 +1,24 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.jetbrains.kotlin.android)
 }
 
 android {
     namespace = "com.infinityclone.app"
-    compileSdk = 34
+    compileSdk = (rootProject.extra["compileSdkVersion"] as Int)
+    ndkVersion = "29.0.13846066"
 
     defaultConfig {
         applicationId = "com.infinityclone.app"
-        minSdk = 23
-        // targetSdk پایین‌تر = محدودیت‌های کمتر سیستم‌عامل برای موتور مجازی‌سازی
-        // (بدون فیلتر package-visibility و با دسترسی legacy storage).
-        // این عمداً روی 30 نگه داشته شده؛ بالا بردنش restrictionهای بیشتری اضافه می‌کند.
-        targetSdk = 30
-        versionCode = 1
-        versionName = "0.1.0"
+        minSdk = 26
+        // targetSdk پایین (۲۸) = محدودیت‌های کمتر سیستم‌عامل برای موتور مجازی‌سازی.
+        targetSdk = (rootProject.extra["targetSdkVersion"] as Int)
+        versionCode = (rootProject.extra["versionCode"] as Int)
+        versionName = (rootProject.extra["versionName"] as String)
 
         ndk {
-            // موتور فقط برای این ABIها lib دارد؛ بقیه را حذف می‌کنیم تا حجم کم شود
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            // موتور فقط برای این دو معماری lib بومی دارد.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
@@ -35,17 +34,16 @@ android {
 
     packaging {
         jniLibs {
-            // موتور مجازی‌سازی به استخراج کتابخانه‌های native نیاز دارد
             useLegacyPackaging = true
         }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
     buildFeatures {
         viewBinding = true
@@ -53,19 +51,15 @@ android {
 }
 
 dependencies {
-    // ── هسته‌ی مجازی‌سازی (NewBlackbox) ───────────────────────────────
-    // AAR را در app/libs/ قرار بده و نام فایل را اینجا مطابقت بده.
-    // راهنمای کامل در README.md بخش «افزودن موتور».
-    // implementation(files("libs/blackbox.aar"))
+    // ── هسته‌ی مجازی‌سازی (NewBlackbox) به‌صورت ماژول داخل پروژه ──────────
+    implementation(project(":Bcore"))
 
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation(libs.appcompat)
+    implementation(libs.material)
+    implementation(libs.constraintlayout)
+    implementation(libs.core.ktx)
+
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-
-    // عبور از محدودیت Hidden API در اندروید 9+ (برای انعکاس‌های موتور)
-    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
 }

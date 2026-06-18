@@ -1,0 +1,102 @@
+package com.infinityclone.app.core
+
+import android.app.Application
+import android.content.Context
+import android.util.Log
+import java.io.File
+import top.niunaijun.blackbox.BlackBoxCore
+import top.niunaijun.blackbox.app.configuration.ClientConfiguration
+
+/**
+ * پیاده‌سازی واقعی موتور روی NewBlackbox (ماژول :Bcore).
+ *
+ * ترتیب راه‌اندازی دقیقاً مطابق اپ نمونه‌ی موتور است.
+ */
+class BlackBoxEngine : CloneEngine {
+
+    private val core: BlackBoxCore get() = BlackBoxCore.get()
+
+    override val isReady: Boolean = true
+
+    // ── چرخه‌ی عمر ──────────────────────────────────────────────────
+    override fun attach(app: Application, base: Context) {
+        runCatching { core.closeCodeInit() }
+            .onFailure { Log.e(TAG, "closeCodeInit: ${it.message}") }
+
+        runCatching { core.onBeforeMainApplicationAttach(app, base) }
+            .onFailure { Log.e(TAG, "onBeforeMainApplicationAttach: ${it.message}") }
+
+        runCatching { core.doAttachBaseContext(base, config) }
+            .onFailure { Log.e(TAG, "doAttachBaseContext: ${it.message}") }
+
+        runCatching { core.onAfterMainApplicationAttach(app, base) }
+            .onFailure { Log.e(TAG, "onAfterMainApplicationAttach: ${it.message}") }
+    }
+
+    override fun onCreate() {
+        runCatching { core.doCreate() }
+            .onFailure { Log.e(TAG, "doCreate: ${it.message}") }
+    }
+
+    // ── عملیات کلون ─────────────────────────────────────────────────
+    override fun listClones(): List<CloneInfo> {
+        val pm = BlackBoxCore.getPackageManager()
+        val result = mutableListOf<CloneInfo>()
+        for (user in core.users) {
+            val userId = user.id
+            val apps = runCatching { core.getInstalledApplications(0, userId) }.getOrNull().orEmpty()
+            for (app in apps) {
+                val label = runCatching { pm.getApplicationLabel(app).toString() }
+                    .getOrDefault(app.packageName)
+                result += CloneInfo(app.packageName, userId, label)
+            }
+        }
+        return result
+    }
+
+    override fun createClone(packageName: String): Int {
+        val userId = nextFreeUserId(packageName)
+        // اگر فضای مجازی موردنظر وجود ندارد، ساخته شود.
+        if (core.users.none { it.id == userId }) {
+            runCatching { core.createUser(userId) }
+                .onFailure { Log.e(TAG, "createUser($userId): ${it.message}"); return -1 }
+        }
+        val res = runCatching { core.installPackageAsUser(packageName, userId) }.getOrNull()
+        return if (res != null && res.success) userId else -1
+    }
+
+    override fun launchClone(packageName: String, userId: Int): Boolean {
+        return runCatching { core.launchApk(packageName, userId) }.getOrDefault(false)
+    }
+
+    override fun removeClone(packageName: String, userId: Int) {
+        runCatching { core.uninstallPackageAsUser(packageName, userId) }
+            .onFailure { Log.e(TAG, "uninstall: ${it.message}") }
+    }
+
+    override fun isCloneInstalled(packageName: String, userId: Int): Boolean {
+        return runCatching { core.isInstalled(packageName, userId) }.getOrDefault(false)
+    }
+
+    /**
+     * کوچک‌ترین userId که این پکیج در آن نصب نیست را پیدا می‌کند.
+     * این همان چیزی است که «کلون نامحدود» را ممکن می‌کند: هر بار یک فضای جدید.
+     */
+    private fun nextFreeUserId(packageName: String): Int {
+        var id = 0
+        while (core.isInstalled(packageName, id)) id++
+        return id
+    }
+
+    // ── پیکربندی موتور ──────────────────────────────────────────────
+    private val config = object : ClientConfiguration() {
+        override fun getHostPackageName(): String = HOST_PACKAGE
+        override fun isHideRoot(): Boolean = true
+        override fun isEnableDaemonService(): Boolean = true
+    }
+
+    private companion object {
+        const val TAG = "BlackBoxEngine"
+        const val HOST_PACKAGE = "com.infinityclone.app"
+    }
+}

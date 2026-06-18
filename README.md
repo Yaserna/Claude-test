@@ -19,58 +19,52 @@ UI (MainActivity, InstalledAppsActivity)
         ▼
    CloneEngine (interface)
         │
-        ├── NoopEngine      ← پیش‌فرض؛ اپ بدون موتور هم build/اجرا می‌شود
-        └── BlackBoxEngine  ← پیاده‌سازی واقعی روی موتور NewBlackbox/BlackBox
+        ├── BlackBoxEngine  ← پیش‌فرض؛ پیاده‌سازی واقعی روی موتور NewBlackbox
+        └── NoopEngine      ← فقط برای دیباگِ UI بدون موتور
 ```
 
-**موتور انتخابی:** [NewBlackbox](https://github.com/ALEX5402/NewBlackbox) — فورک
-نگه‌داری‌شده‌ی BlackBox.
-- پشتیبانی اندروید ۵ تا ۱۵ (شامل اندروید ۱۲) · بدون روت · لایسنس Apache 2.0
-- چرا این روش؟ نوشتن موتور مجازی‌سازی از صفر عملاً چندسال کار است؛ سوار شدن روی یک
-  موتور متن‌باز فعال، کم‌مشکل‌ترین مسیر روی اندروید مدرن است.
+**موتور:** [NewBlackbox](https://github.com/ALEX5402/NewBlackbox) — فورک نگه‌داری‌شده‌ی
+BlackBox. کد موتور به‌صورت ماژول‌های `Bcore`، `black-reflection` و `compiler` داخل
+همین مخزن قرار دارد (شامل بخش بومی C/C++ که با NDK ساخته می‌شود). لایسنس Apache 2.0.
+
+ماژول‌های پروژه:
+
+| ماژول | نقش |
+|-------|------|
+| `app` | اپ میزبان ما (UI + لایه‌ی `CloneEngine`) |
+| `Bcore` | هسته‌ی موتور مجازی‌سازی (Java/Kotlin + C/C++) |
+| `black-reflection` | ابزار reflection موتور |
+| `compiler` | annotation processor موتور |
+
+> همه‌ی کامپوننت‌های پروکسی موتور از طریق manifest ماژول `Bcore` به‌صورت خودکار merge
+> می‌شوند؛ نیازی به اعلام دستی در مانیفست `app` نیست.
 
 ---
 
-## ساخت پروژه (همین الان، بدون موتور)
+## ساخت پروژه
 
-اپ با `NoopEngine` کامپایل و اجرا می‌شود تا بتوانی UI را ببینی:
+به‌خاطر بخش بومی موتور، ساخت به **NDK 29.0.13846066** و **JDK 21** نیاز دارد.
 
+### روش ۱: ساخت خودکار با GitHub Actions (پیشنهادی)
+با هر push روی هر برنچ، workflow فایل
+[`.github/workflows/android.yml`](.github/workflows/android.yml) اجرا می‌شود، NDK را
+نصب و APK دیباگ را می‌سازد. خروجی را از تب **Actions → آخرین run → Artifacts → app-debug**
+دانلود کن.
+
+### روش ۲: ساخت محلی
 ```bash
-./gradlew assembleDebug
+# نیازمند Android SDK + NDK 29.0.13846066 + JDK 21
+./gradlew :app:assembleDebug
 # خروجی: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-در این حالت لیست اپ‌های نصب‌شده را می‌بینی، ولی ساخت کلون کاری نمی‌کند
-(یک هشدار زرد بالای صفحه نشان داده می‌شود).
-
 ---
 
-## افزودن موتور (فعال‌سازی کلون واقعی)
+## تعویض/غیرفعال‌کردن موتور (اختیاری)
 
-۱. **گرفتن AAR:** از مخزن [NewBlackbox](https://github.com/ALEX5402/NewBlackbox)
-   فایل AAR موتور را build/دانلود کن و در `app/libs/blackbox.aar` بگذار.
-
-۲. **فعال‌سازی وابستگی** در `app/build.gradle.kts`:
-   ```kotlin
-   implementation(files("libs/blackbox.aar"))
-   ```
-
-۳. **افزودن پیاده‌سازی موتور:** فایل
-   [`engine-impl/BlackBoxEngine.kt`](engine-impl/BlackBoxEngine.kt) را به مسیر
-   `app/src/main/java/com/infinityclone/app/core/` منتقل کن.
-
-۴. **سوییچ موتور** در
-   [`core/Engine.kt`](app/src/main/java/com/infinityclone/app/core/Engine.kt):
-   ```kotlin
-   val instance: CloneEngine = BlackBoxEngine()
-   ```
-
-۵. **تطبیق API:** نام پکیج importها و امضای متدهای موتور (جاهای علامت‌خورده با ⚠️)
-   را با نسخه‌ی AAR خودت چک کن. این بخش‌ها بین فورک‌های مختلف BlackBox کمی فرق دارند.
-
-۶. **کامپوننت‌های پروکسی:** اگر نسخه‌ی موتور نیاز داشت Stubها را صریحاً در مانیفست
-   اعلام کنی، طبق مانیفست ماژول `app` نمونه‌ی موتور به
-   [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml) اضافه کن.
+برای دیباگِ UI بدون موتور، در
+[`core/Engine.kt`](app/src/main/java/com/infinityclone/app/core/Engine.kt) مقدار را به
+`NoopEngine()` تغییر بده.
 
 ---
 
@@ -99,7 +93,9 @@ UI (MainActivity, InstalledAppsActivity)
 ## وضعیت
 
 - [x] اسکلت پروژه + UI پایه (لیست اپ‌ها، لیست کلون‌ها)
-- [x] لایه‌ی انتزاعی موتور (`CloneEngine`) + پیاده‌سازی Noop
-- [x] کد پیاده‌سازی موتور BlackBox (آماده برای وصل‌کردن)
-- [ ] وصل‌کردن AAR واقعی و تست روی دستگاه اندروید ۱۲
-- [ ] مدیریت چند فضای مجازی در UI (نام‌گذاری دلخواه کلون‌ها)
+- [x] لایه‌ی انتزاعی موتور (`CloneEngine`)
+- [x] آوردن موتور واقعی BlackBox به‌صورت ماژول + وصل‌کردن API واقعی
+- [x] workflow ساخت APK با NDK
+- [ ] سبز شدن build در CI و رفع خطاهای احتمالی ساخت
+- [ ] تست نصب/اجرای کلون روی دستگاه اندروید ۱۲
+- [ ] مدیریت بهتر فضاها در UI (نام‌گذاری دلخواه کلون‌ها)

@@ -1,14 +1,13 @@
 package com.infinityclone.app.core
 
+import android.app.Application
 import android.content.Context
-import android.content.res.Configuration
 
 /**
  * یک کلون نصب‌شده در فضای مجازی.
  *
- * @param packageName نام پکیج اپ اصلی که کلون شده.
- * @param userId شناسه‌ی فضای مجازی. هر userId یک نسخه‌ی مستقل است؛
- *               پس «کلون نامحدود» = ساختن userIdهای جدید بدون سقف.
+ * هر [userId] یک فضای مجازی مستقل است؛ پس «کلون نامحدود» یعنی ساختن فضاهای
+ * جدید بدون سقف.
  */
 data class CloneInfo(
     val packageName: String,
@@ -20,18 +19,16 @@ data class CloneInfo(
  * قرارداد بین اپ میزبان و موتور مجازی‌سازی.
  *
  * کل برنامه فقط با این اینترفیس کار می‌کند و هیچ‌جای دیگری مستقیماً به موتور
- * (BlackBox/NewBlackbox) وصل نیست. این یعنی تعویض یا به‌روزرسانی موتور فقط یک
- * پیاده‌سازی جدید از این اینترفیس می‌خواهد.
+ * (BlackBox/NewBlackbox) وصل نیست.
  */
 interface CloneEngine {
 
-    /** آیا موتور واقعی فعال است؟ (false یعنی پیاده‌سازی Noop در حال اجراست) */
+    /** آیا موتور واقعی فعال است؟ */
     val isReady: Boolean
 
     // ── چرخه‌ی عمر (از CloneApplication صدا زده می‌شود) ────────────────
-    fun attach(context: Context)
+    fun attach(app: Application, base: Context)
     fun onCreate()
-    fun onConfigurationChanged(newConfig: Configuration)
 
     // ── عملیات کلون ─────────────────────────────────────────────────
 
@@ -39,14 +36,14 @@ interface CloneEngine {
     fun listClones(): List<CloneInfo>
 
     /**
-     * یک کلون جدید از اپی که روی دستگاه نصب است می‌سازد.
-     * اگر [userId] برابر -1 باشد، یک فضای مجازی جدید (کلون بعدی) ساخته می‌شود.
+     * یک کلون جدید از اپی که روی دستگاه نصب است می‌سازد. یک فضای مجازی تازه
+     * انتخاب/ساخته می‌شود تا کلون مستقل از نسخه‌های قبلی باشد.
      * @return userId فضایی که کلون در آن نصب شد، یا -1 در صورت شکست.
      */
-    fun createClone(packageName: String, userId: Int = -1): Int
+    fun createClone(packageName: String): Int
 
     /** اجرای یک کلون. */
-    fun launchClone(packageName: String, userId: Int)
+    fun launchClone(packageName: String, userId: Int): Boolean
 
     /** حذف یک کلون مشخص. */
     fun removeClone(packageName: String, userId: Int)
