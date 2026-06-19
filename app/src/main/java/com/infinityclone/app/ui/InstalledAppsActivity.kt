@@ -112,43 +112,15 @@ class InstalledAppsActivity : AppCompatActivity() {
         }
     }
 
-    /** پنجره‌ی تشخیص: پیام + لاگ موتور، با امکان اشتراک‌گذاری برای عیب‌یابی. */
+    /** پنجره‌ی تشخیص: پیام + آخرین مرحله‌ای که موتور به آن رسید. */
     private fun showDiagnostics(message: String) {
         val step = Engine.instance.lastStep
-        val logs = captureLogs()
-        val body = "$message\n\n▶ آخرین مرحله‌ی موتور: $step\n\n──────── لاگ موتور ────────\n$logs"
+        val body = "$message\n\n▶ آخرین مرحله‌ی موتور: $step"
         AlertDialog.Builder(this)
             .setTitle(R.string.diag_title)
             .setMessage(body)
-            .setPositiveButton(R.string.share) { _, _ ->
-                val share = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, body)
-                }
-                startActivity(Intent.createChooser(share, getString(R.string.share)))
-            }
-            .setNegativeButton(R.string.close, null)
+            .setPositiveButton(R.string.close, null)
             .show()
-    }
-
-    /** آخرین خطوط مرتبط لاگِ پروسه‌ی خودمان (شامل پروسه‌های موتور با همان UID). */
-    private fun captureLogs(): String {
-        return try {
-            val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time"))
-            val text = process.inputStream.bufferedReader().readText()
-            val keys = listOf(
-                "BlackBox", "Bcore", "BPackage", "BActivity", "Slog",
-                "AndroidRuntime", "infinityclone", "BlackBoxEngine", "FATAL"
-            )
-            text.lineSequence()
-                .filter { line -> keys.any { line.contains(it, ignoreCase = true) } }
-                .toList()
-                .takeLast(120)
-                .joinToString("\n")
-                .ifBlank { "لاگ مرتبطی پیدا نشد." }
-        } catch (e: Exception) {
-            "خطا در خواندن لاگ: ${e.message}"
-        }
     }
 
     private companion object {

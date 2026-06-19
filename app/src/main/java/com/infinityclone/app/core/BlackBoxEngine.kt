@@ -107,12 +107,16 @@ class BlackBoxEngine : CloneEngine {
     }
 
     /**
-     * کوچک‌ترین userId که این پکیج در آن نصب نیست را پیدا می‌کند.
-     * این همان چیزی است که «کلون نامحدود» را ممکن می‌کند: هر بار یک فضای جدید.
+     * اولین شناسه‌ی فضای آزاد را پیدا می‌کند تا کلون در یک فضای تازه و مستقل نصب شود.
+     *
+     * ⚠️ قبلاً اینجا `isInstalled` در یک حلقه صدا زده می‌شد؛ روی بعضی دستگاه‌ها موتور
+     * یک پاسخ «جایگزین» می‌دهد که حلقه را بی‌نهایت می‌کرد و کلون را به گیر می‌انداخت.
+     * حالا فقط از فهرست فضاهای موجود استفاده می‌کنیم (بدون فراخوانی پرهزینه/ناپایدار).
      */
     private fun nextFreeUserId(packageName: String): Int {
+        val ids = runCatching { core.users.map { it.id } }.getOrDefault(emptyList())
         var id = 0
-        while (core.isInstalled(packageName, id)) id++
+        while (id in ids) id++
         return id
     }
 
