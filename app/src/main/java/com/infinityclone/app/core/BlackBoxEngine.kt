@@ -40,6 +40,10 @@ class BlackBoxEngine : CloneEngine {
     override fun onCreate() {
         runCatching { core.doCreate() }
             .onFailure { Log.e(TAG, "doCreate: ${it.message}") }
+
+        // گرم‌کردن زودهنگام پروسه‌ی سرویس در پس‌زمینه، تا وقتی کاربر می‌خواهد کلون
+        // بسازد، سرویس از قبل بالا آمده باشد (روی MIUI کمک بزرگی است).
+        Thread { ensureServices() }.apply { isDaemon = true; start() }
     }
 
     // ── عملیات کلون ─────────────────────────────────────────────────
@@ -95,6 +99,9 @@ class BlackBoxEngine : CloneEngine {
      * سرویسِ آماده اجرا شوند.
      */
     private fun ensureServices() {
+        // پروسه‌ی سرویس را استارت می‌زند و تا ~۲.۵ ثانیه منتظر بالا آمدنش می‌ماند.
+        runCatching { core.ensureBlackProcessInitialized() }
+            .onFailure { Log.e(TAG, "ensureBlackProcessInitialized: ${it.message}") }
         runCatching { core.areServicesAvailable() }
             .onFailure { Log.e(TAG, "areServicesAvailable: ${it.message}") }
     }
