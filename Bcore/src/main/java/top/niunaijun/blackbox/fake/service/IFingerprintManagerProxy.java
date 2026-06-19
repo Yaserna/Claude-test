@@ -1,10 +1,9 @@
 package top.niunaijun.blackbox.fake.service;
 
 import android.content.Context;
-import android.os.IBinder;
 
+import black.android.hardware.fingerprint.BRIFingerprintServiceStub;
 import black.android.os.BRServiceManager;
-import black.android.view.BRIGraphicsStatsStub;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.service.base.PkgMethodProxy;
 
@@ -16,7 +15,9 @@ public class IFingerprintManagerProxy extends BinderInvocationStub {
 
     @Override
     protected Object getWho() {
-        return BRIGraphicsStatsStub.get().asInterface(BRServiceManager.get().getService(Context.FINGERPRINT_SERVICE));
+        // اینترفیس درست FingerprintService (قبلاً اشتباهاً IGraphicsStats بود که باعث
+        // می‌شد هوک‌ها اعمال نشوند و اثر انگشت در فضای مجازی کار نکند).
+        return BRIFingerprintServiceStub.get().asInterface(BRServiceManager.get().getService(Context.FINGERPRINT_SERVICE));
     }
 
     @Override

@@ -30,6 +30,7 @@ import top.niunaijun.blackbox.fake.service.IXiaomiMiuiServicesProxy;
 import top.niunaijun.blackbox.fake.service.IDnsResolverProxy;
 import top.niunaijun.blackbox.fake.service.IContextHubServiceProxy;
 import top.niunaijun.blackbox.fake.service.IDeviceIdentifiersPolicyProxy;
+import top.niunaijun.blackbox.fake.service.IAuthServiceProxy;
 import top.niunaijun.blackbox.fake.service.IDevicePolicyManagerProxy;
 import top.niunaijun.blackbox.fake.service.IDisplayManagerProxy;
 import top.niunaijun.blackbox.fake.service.IFingerprintManagerProxy;
@@ -218,6 +219,12 @@ public class HookManager {
             if (BuildCompat.isM()) {
                 addInjector(new IFingerprintManagerProxy());
                 addInjector(new IGraphicsStatsProxy());
+            }
+
+            // بیومتریک مدرن (BiometricPrompt) از اندروید ۱۰ (API 29) از سرویس "auth"
+            // (android.hardware.biometrics.IAuthService) استفاده می‌کند.
+            if (BuildCompat.isQ()) {
+                addInjector(new IAuthServiceProxy());
             }
             
             if (BuildCompat.isL()) {
