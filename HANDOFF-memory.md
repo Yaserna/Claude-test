@@ -185,6 +185,29 @@ TAP_WINDOW_MS=15000  TAP_GAP=[280,380]  TARGET_5M=70  MAX_SESSIONS=4  REWARD_MS=
 
 ---
 
+## 4.5) ⚠️ مهاجرتِ State V2 و SDK جدید (۲۰۲۶-۰۶-۱۹) — مهم برای آینده
+
+- **چه شد:** شبکه حدودِ ۱۶ ژوئن به State V2 ارتقا یافت و حالا `dapp_id` را در همهٔ query‌های
+  GraphQL **اجباری** می‌خواهد. `bee_sdk.js` قدیمی این را نمی‌فرستاد → هر فراخوانی با code 205
+  («failed to get_indexer_address») یا code 621 («Cancel stale session data») fail می‌شد و
+  پروسهٔ ماینر روی `pos=5%` قفل کرد (۲ روز گیر).
+- **حل:** SDKِ تولیدیِ جدید استخراج و برای Node تطبیق داده شد:
+  - **`bee_sdk_bg.wasm`** (۸٬۵۱۲٬۲۸۶ بایت) از `https://tma-batteries.ackinacki.org/bee_sdk_bg.wasm`.
+  - **`bee_sdk.mjs`** = glueِ wasm-bindgen استخراج‌شده از باندلِ اپ (`index-BMvxS0l3.js`) با
+    یک shimِ Node در هدر: `globalThis.Window = class Window {}` + ساختِ یک `window = new Window()`
+    با `fetch/WebSocket/setTimeout/crypto/...` (چون SDK از `instanceof Window` و `window.fetch`
+    استفاده می‌کند). همین shim کافی است — کدِ مصرف‌کننده دیگر نیازی به shimِ دستی ندارد.
+- **تغییراتِ API نسبت به نسخهٔ قدیمی:**
+  - سازندهٔ Wallet آرگومانِ دوم گرفت: `new Wallet(ENDPOINTS, null, BACKEND, APP_ID)` (دومی = endpoints2 اختیاری).
+  - `init` حالا **named export** است (نه default): `import { init, Wallet, Miner } from './bee_sdk.mjs'`.
+  - فیلدهای `get_miner_data()` حالا **BigInt** هستند (`epoch_5m_start`, `epoch_start`, `tap_sum`,
+    `tap_sum_5m`) — با `Number()` تبدیل می‌شوند.
+  - `Miner.new(ENDPOINTS, APP_ID, addr, pub, sec)` و `get_multifactor_balances` بدون تغییر.
+- **تأیید:** `probe_sdk.mjs` روی سرور `LOCKED REWARD = 297.978154 NACKL` را برگرداند؛ بعدِ نصب،
+  لاگ `--- EPOCH 242 START | startLocked=297.978154 NACKL ---` را نشان داد → کاملاً sync.
+- **فایل‌های نسخه‌خورده (شاخهٔ `Miner`):** `miner/mine_smart.mjs`, `miner/bee_sdk.mjs`,
+  `miner/bee_sdk_bg.wasm`, `miner/probe_sdk.mjs`. روی سرور `bee_sdk.js` قدیمی به `.old` تغییرِ نام یافت.
+
 ## 5) 🖥️ وضعیتِ فعلیِ سرور (در حال اجرا)
 
 - **سرور لینوکسی (VPS):** `root@141.11.32.109` پورت `9011`، کلید روی ویندوزِ کاربر:
@@ -192,8 +215,9 @@ TAP_WINDOW_MS=15000  TAP_GAP=[280,380]  TARGET_5M=70  MAX_SESSIONS=4  REWARD_MS=
   ```
   ssh -o ServerAliveInterval=3 -i "$env:USERPROFILE\.ssh\Fr" -p 9011 root@141.11.32.109
   ```
-- **Node 20** نصب است. پوشهٔ ماینر شاملِ `mine_smart.mjs`, `run_smart.sh`, `bee_sdk.js`,
-  `bee_sdk_bg.wasm`, `mining_keys_yasan1.json`, `miner_address_yasan1.txt`.
+- **Node 22** نصب است. پوشهٔ ماینر شاملِ `mine_smart.mjs`, `run_smart.sh`, **`bee_sdk.mjs`**
+  (نسخهٔ جدید؛ `bee_sdk.js` قدیمی → `bee_sdk.js.old`), `bee_sdk_bg.wasm`,
+  `mining_keys_yasan1.json`, `miner_address_yasan1.txt`.
   **`wallets.txt` عمداً روی سرور نیست** (امنیت).
 - **در حال اجرا با:** `nohup bash run_smart.sh yasan1 > /dev/null 2>&1 &` — تک‌نسخه، تأییدشده روشن
   (PID نمونه: 275712 / `node mine_smart.mjs yasan1`).
