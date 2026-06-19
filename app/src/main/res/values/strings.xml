@@ -18,6 +18,15 @@
     <string name="diag_title">گزارش تشخیص</string>
     <string name="share">اشتراک‌گذاری</string>
     <string name="close">بستن</string>
+    <string name="save">ذخیره</string>
+    <string name="more">گزینه‌ها</string>
+
+    <string name="action_rename">تغییر نام</string>
+    <string name="action_add_home">افزودن به صفحه‌ی اصلی</string>
+    <string name="action_remove">حذف</string>
+
+    <string name="shortcut_requested">آیکن به صفحه‌ی اصلی اضافه شد</string>
+    <string name="shortcut_unsupported">لانچر گوشی از افزودن آیکن پشتیبانی نمی‌کند</string>
 
     <string name="engine_disabled">موتور مجازی‌سازی فعال نیست (AAR اضافه نشده)</string>
     <string name="engine_warning">⚠️ موتور واقعی اضافه نشده است؛ کلون‌ها کار نمی‌کنند. برای فعال‌سازی به README مراجعه کن.</string>

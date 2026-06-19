@@ -46,6 +46,13 @@
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <!-- آیکن‌های صفحه‌ی اصلی این اکتیویتی نامرئی را صدا می‌زنند تا کلون را اجرا کند -->
+        <activity
+            android:name=".ui.ShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+
         <!--
             ⚠️ کامپوننت‌های پروکسی موتور (Stub Activities/Services/Providers/:p0..:pN)
             از طریق merge شدن مانیفست AAR موتور اضافه می‌شوند. اگر نسخه‌ی موتور

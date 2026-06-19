@@ -22,6 +22,17 @@ android {
         }
     }
 
+    signingConfigs {
+        // کلید ثابت دیباگ که در مخزن نگه داشته شده تا همه‌ی بیلدها امضای یکسان
+        // داشته باشند و آپدیت‌ها بدون نیاز به حذف نسخه‌ی قبلی نصب شوند.
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
