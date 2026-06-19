@@ -1,7 +1,5 @@
 package top.niunaijun.blackbox.fake.service;
 
-import android.content.Context;
-
 import black.android.hardware.biometrics.BRIAuthServiceStub;
 import black.android.os.BRServiceManager;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
@@ -18,18 +16,22 @@ import top.niunaijun.blackbox.fake.service.base.PkgMethodProxy;
  * تا سیستم تماس را بپذیرد و پنجره‌ی بیومتریک نمایش داده شود.
  */
 public class IAuthServiceProxy extends BinderInvocationStub {
+    // Context.AUTH_SERVICE یک ثابت مخفی (@hide) است و در SDK عمومی نیست؛
+    // برای همین مقدار رشته‌ای آن را مستقیم استفاده می‌کنیم.
+    private static final String AUTH_SERVICE = "auth";
+
     public IAuthServiceProxy() {
-        super(BRServiceManager.get().getService(Context.AUTH_SERVICE));
+        super(BRServiceManager.get().getService(AUTH_SERVICE));
     }
 
     @Override
     protected Object getWho() {
-        return BRIAuthServiceStub.get().asInterface(BRServiceManager.get().getService(Context.AUTH_SERVICE));
+        return BRIAuthServiceStub.get().asInterface(BRServiceManager.get().getService(AUTH_SERVICE));
     }
 
     @Override
     protected void inject(Object baseInvocation, Object proxyInvocation) {
-        replaceSystemService(Context.AUTH_SERVICE);
+        replaceSystemService(AUTH_SERVICE);
     }
 
     @Override
