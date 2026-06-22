@@ -141,8 +141,8 @@ object Notifier {
             .setAutoCancel(true)
             .setContentIntent(tapPi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .addAction(replyAction)
             .addAction(R.drawable.ic_mark_read, context.getString(R.string.notif_mark_read), readPi)
+            .addAction(replyAction)
             .addAction(R.drawable.ic_delete, context.getString(R.string.notif_delete), deletePi)
 
         // On pre-O devices the channel doesn't exist; ask for sound + vibration here.
@@ -156,6 +156,30 @@ object Notifier {
     /** Removes the real notification for a normal sender (e.g. when its chat is opened). */
     fun cancelIncoming(context: Context, address: String) {
         NotificationManagerCompat.from(context).cancel(address.hashCode())
+    }
+
+    /** A short vibration, used when a message arrives for the conversation already open. */
+    fun vibrateTiny(context: Context) {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE)
+                as android.os.VibratorManager).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(
+                    android.os.VibrationEffect.createOneShot(
+                        45, android.os.VibrationEffect.DEFAULT_AMPLITUDE
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION") vibrator.vibrate(45)
+            }
+        } catch (e: Exception) {
+            // No vibrator or permission; ignore.
+        }
     }
 
     /**

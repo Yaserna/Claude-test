@@ -40,6 +40,12 @@ class ConversationActivity : BaseActivity() {
     private var simIndex: Int = 0
     private var pickedNumber: String? = null
 
+    companion object {
+        /** Normalized address of the conversation currently open on screen (or null). */
+        @Volatile
+        var activeNormalizedAddress: String? = null
+    }
+
     private fun setupRecipientAutocomplete() {
         binding.recipient.setAdapter(ContactSuggestAdapter(this))
         binding.recipient.setOnItemClickListener { parent, _, position, _ ->
@@ -169,18 +175,31 @@ class ConversationActivity : BaseActivity() {
         android.os.Handler(android.os.Looper.getMainLooper())
     ) {
         override fun onChange(selfChange: Boolean) {
-            if (threadId > 0) loadMessages()
+            if (threadId > 0) {
+                // The chat is open, so keep its messages read while a new one arrives.
+                repo.markThreadRead(threadId)
+                loadMessages()
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
+        // Mark this conversation as the one currently open, so a new message from it
+        // shows live here (with a tiny vibration) instead of posting a notification.
+        activeNormalizedAddress =
+            if (address.isNotEmpty()) SecureStore.normalize(address) else null
         // Opening the conversation clears its notification (so it doesn't linger).
         if (address.isNotEmpty()) com.privatemsg.app.sms.Notifier.cancelIncoming(this, address)
         if (threadId > 0) {
             repo.markThreadRead(threadId)
             loadMessages()
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        activeNormalizedAddress = null
     }
 
     override fun onDestroy() {

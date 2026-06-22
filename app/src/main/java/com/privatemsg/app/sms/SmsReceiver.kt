@@ -52,7 +52,15 @@ class SmsReceiver : BroadcastReceiver() {
         val uri = context.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, values)
         val messageId = uri?.lastPathSegment?.toLongOrNull() ?: -1
 
-        Notifier.showIncoming(context, address, text, messageId)
+        // If this very conversation is open on screen, don't post a notification —
+        // the open chat updates live; just give a tiny vibration instead.
+        if (SecureStore.normalize(address) ==
+            com.privatemsg.app.ui.ConversationActivity.activeNormalizedAddress
+        ) {
+            Notifier.vibrateTiny(context)
+        } else {
+            Notifier.showIncoming(context, address, text, messageId)
+        }
     }
 
     companion object {
