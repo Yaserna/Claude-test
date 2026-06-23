@@ -34,6 +34,7 @@ class ConversationActivity : BaseActivity() {
     private lateinit var binding: ActivityConversationBinding
     private lateinit var repo: SmsRepository
     private lateinit var adapter: MessageAdapter
+    private var recentsAdapter: ConversationAdapter? = null
     private var threadId: Long = -1
     private var address: String = ""
     private var sims: List<SimHelper.Sim> = emptyList()
@@ -50,16 +51,53 @@ class ConversationActivity : BaseActivity() {
         binding.recipient.setAdapter(ContactSuggestAdapter(this))
         binding.recipient.setOnItemClickListener { parent, _, position, _ ->
             val item = parent.getItemAtPosition(position) as? ContactItem ?: return@setOnItemClickListener
-            pickedNumber = item.number
-            binding.recipient.setText(item.number)
-            binding.recipient.setSelection(item.number.length)
-            binding.titleName.text = item.name
+            // Picking a contact jumps straight into their existing conversation.
+            enterConversation(item.number)
         }
         binding.recipient.addTextChangedListener(
             onTextChanged = { text, _, _, _ ->
                 if (text?.toString() != pickedNumber) pickedNumber = null
             }
         )
+        // Typing a phone number and pressing the keyboard's Done also opens its chat.
+        binding.recipient.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                val num = binding.recipient.text.toString().filter { it.isDigit() || it == '+' }
+                if (num.isNotEmpty()) { enterConversation(num); true } else false
+            } else false
+        }
+    }
+
+    /**
+     * Switches the compose screen into the conversation with [number]: shows that
+     * thread's existing messages (if any) and lets the user type from there.
+     */
+    private fun enterConversation(number: String) {
+        val to = number.trim()
+        if (to.isEmpty()) return
+        address = to
+        pickedNumber = to
+        threadId = android.provider.Telephony.Threads.getOrCreateThreadId(this, to)
+        binding.recipientRow.visibility = View.GONE
+        binding.titleName.text = com.privatemsg.app.data.ContactsHelper(this).displayFor(to)
+        binding.titleNumber.text = to
+        // Swap the "recent suggestions" list for the real message list.
+        binding.recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+        binding.recycler.adapter = adapter
+        setupSim()
+        activeNormalizedAddress = SecureStore.normalize(to)
+        com.privatemsg.app.sms.Notifier.cancelIncoming(this, to)
+        repo.markThreadRead(threadId)
+        loadMessages()
+        binding.input.requestFocus()
+    }
+
+    /** Loads recent conversations to suggest as recipients while composing. */
+    private fun loadRecents() {
+        Thread {
+            val convos = repo.getConversations().sortedByDescending { it.date }.take(25)
+            runOnUiThread { recentsAdapter?.submit(convos) }
+        }.start()
     }
 
     private val pickContact = registerForActivityResult(
@@ -77,9 +115,8 @@ class ConversationActivity : BaseActivity() {
             )?.use { c ->
                 if (c.moveToFirst()) {
                     val number = c.getString(0) ?: ""
-                    pickedNumber = number
-                    binding.recipient.setText(number)
-                    binding.titleName.text = c.getString(1) ?: number
+                    // Jump straight into this contact's existing conversation.
+                    if (number.isNotEmpty()) enterConversation(number)
                 }
             }
         }
@@ -153,8 +190,20 @@ class ConversationActivity : BaseActivity() {
             sentColor = colorStore.sentBubbleColor,
             receivedColor = colorStore.receivedBubbleColor
         )
-        binding.recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
-        binding.recycler.adapter = adapter
+        if (address.isEmpty()) {
+            // Compose mode: the list area shows recent conversations as quick
+            // recipient suggestions (people I recently messaged / opened).
+            recentsAdapter = ConversationAdapter(
+                contacts = com.privatemsg.app.data.ContactsHelper(this),
+                onClick = { conv -> enterConversation(conv.address) }
+            )
+            binding.recycler.layoutManager = LinearLayoutManager(this)
+            binding.recycler.adapter = recentsAdapter
+            loadRecents()
+        } else {
+            binding.recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+            binding.recycler.adapter = adapter
+        }
 
         binding.selCancel.setOnClickListener { adapter.exitSelection() }
         binding.selSelectAll.setOnClickListener { adapter.selectAll() }

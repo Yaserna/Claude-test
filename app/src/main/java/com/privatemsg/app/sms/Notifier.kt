@@ -53,23 +53,9 @@ object Notifier {
     }
 
     /**
-     * The colored app icon as a bitmap, used as the notification's large icon so
-     * the notification always shows the orange Mi-style icon instead of a flat
-     * white silhouette (some launchers render the white small-icon as the app icon).
+     * The accent color used to tint the (monochrome) status-bar icon so the
+     * notification shows in the app's orange tone instead of a flat white icon.
      */
-    private fun appLargeIcon(context: Context): android.graphics.Bitmap? {
-        val d = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_launcher)
-            ?: return null
-        val size = (48 * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        val bmp = android.graphics.Bitmap.createBitmap(
-            size, size, android.graphics.Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(bmp)
-        d.setBounds(0, 0, size, size)
-        d.draw(canvas)
-        return bmp
-    }
-
     private fun accentColor(context: Context): Int =
         androidx.core.content.ContextCompat.getColor(context, R.color.accent)
 
@@ -135,7 +121,6 @@ object Notifier {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_message)
-            .setLargeIcon(appLargeIcon(context))
             .setColor(accentColor(context))
             .setStyle(style)
             .setAutoCancel(true)
@@ -219,7 +204,6 @@ object Notifier {
 
         val builder = NotificationCompat.Builder(context, DECOY_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_message)
-            .setLargeIcon(appLargeIcon(context))
             .setColor(accentColor(context))
             .setContentTitle(name)
             .setContentText(text)

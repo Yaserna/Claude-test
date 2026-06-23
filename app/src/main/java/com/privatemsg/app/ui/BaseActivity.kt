@@ -90,13 +90,15 @@ abstract class BaseActivity : AppCompatActivity() {
     /** Menu shown when a number (phone / card / OTP) inside a message is tapped. */
     fun showNumberMenu(raw: String) {
         val digits = raw.filter { it.isDigit() || it == '+' }
+        // If the tapped number belongs to a saved contact, show that name on top.
+        val contactName = com.privatemsg.app.data.ContactsHelper(this).nameFor(digits)
         val options = arrayOf(
             getString(R.string.copy),
             getString(R.string.call),
             getString(R.string.add_contact),
             getString(R.string.send_message)
         )
-        showListMenu(options) { which ->
+        showListMenu(options, title = contactName) { which ->
             when (which) {
                 0 -> {
                     val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -121,10 +123,11 @@ abstract class BaseActivity : AppCompatActivity() {
      * Shows a simple list menu that is always centered and a fixed width, so it
      * can't drift off the screen edge (a problem with wrap-content dialogs in RTL).
      */
-    fun showListMenu(items: Array<String>, onItem: (Int) -> Unit) {
-        val dialog = MaterialAlertDialogBuilder(this)
+    fun showListMenu(items: Array<String>, title: String? = null, onItem: (Int) -> Unit) {
+        val builder = MaterialAlertDialogBuilder(this)
             .setItems(items) { _, which -> onItem(which) }
-            .create()
+        if (!title.isNullOrBlank()) builder.setTitle(title)
+        val dialog = builder.create()
         dialog.show()
         dialog.window?.let { w ->
             w.setGravity(android.view.Gravity.CENTER)
