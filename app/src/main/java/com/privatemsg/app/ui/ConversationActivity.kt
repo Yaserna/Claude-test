@@ -87,6 +87,7 @@ class ConversationActivity : BaseActivity() {
         setupSim()
         activeNormalizedAddress = SecureStore.normalize(to)
         com.privatemsg.app.sms.Notifier.cancelIncoming(this, to)
+        SecureStore(this).recordConversationOpened(to)
         repo.markThreadRead(threadId)
         loadMessages()
         binding.input.requestFocus()
@@ -95,7 +96,11 @@ class ConversationActivity : BaseActivity() {
     /** Loads recent conversations to suggest as recipients while composing. */
     private fun loadRecents() {
         Thread {
-            val convos = repo.getConversations().sortedByDescending { it.date }.take(25)
+            val secure = SecureStore(this)
+            // Rank by the most recent of: last message, or last time I opened the chat.
+            val convos = repo.getConversations()
+                .sortedByDescending { maxOf(it.date, secure.openedAt(it.address)) }
+                .take(25)
             runOnUiThread { recentsAdapter?.submit(convos) }
         }.start()
     }
@@ -239,7 +244,11 @@ class ConversationActivity : BaseActivity() {
         activeNormalizedAddress =
             if (address.isNotEmpty()) SecureStore.normalize(address) else null
         // Opening the conversation clears its notification (so it doesn't linger).
-        if (address.isNotEmpty()) com.privatemsg.app.sms.Notifier.cancelIncoming(this, address)
+        if (address.isNotEmpty()) {
+            com.privatemsg.app.sms.Notifier.cancelIncoming(this, address)
+            // Remember this open so it ranks high in "new message" suggestions.
+            SecureStore(this).recordConversationOpened(address)
+        }
         if (threadId > 0) {
             repo.markThreadRead(threadId)
             loadMessages()

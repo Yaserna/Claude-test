@@ -9,7 +9,6 @@ import android.os.Build
 import android.provider.Telephony
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import com.privatemsg.app.R
 import com.privatemsg.app.data.ContactsHelper
@@ -113,16 +112,14 @@ object Notifier {
         ).addRemoteInput(remoteInput).build()
 
         val title = ContactsHelper(context).displayFor(address)
-        // MessagingStyle makes the system show an inline reply input for the reply action.
-        val sender = Person.Builder().setName(title).build()
-        val me = Person.Builder().setName(context.getString(R.string.app_name)).build()
-        val style = NotificationCompat.MessagingStyle(me)
-            .addMessage(body, System.currentTimeMillis(), sender)
-
+        // Plain title + text (no MessagingStyle) so only the app icon shows — no
+        // extra generated sender avatar. The inline reply still works via the action.
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_message)
             .setColor(accentColor(context))
-            .setStyle(style)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(tapPi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

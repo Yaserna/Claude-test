@@ -160,6 +160,18 @@ class SecureStore(context: Context) {
         get() = prefs.getInt(KEY_RECEIVED_COLOR, DEFAULT_RECEIVED_COLOR)
         set(v) = prefs.edit().putInt(KEY_RECEIVED_COLOR, v).apply()
 
+    // ---- Recently opened conversations (to rank compose suggestions) ----
+
+    /** Remember that this conversation was just opened. */
+    fun recordConversationOpened(address: String) {
+        if (address.isBlank()) return
+        prefs.edit().putLong("opened_" + normalize(address), System.currentTimeMillis()).apply()
+    }
+
+    /** When this conversation was last opened (0 if never). */
+    fun openedAt(address: String): Long =
+        if (address.isBlank()) 0L else prefs.getLong("opened_" + normalize(address), 0L)
+
     // ---- Per-conversation preferred SIM ----
 
     fun getThreadSim(address: String): Int =
