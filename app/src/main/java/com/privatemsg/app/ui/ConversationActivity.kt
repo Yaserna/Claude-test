@@ -97,10 +97,11 @@ class ConversationActivity : BaseActivity() {
     private fun loadRecents() {
         Thread {
             val secure = SecureStore(this)
-            // Rank by the most recent of: last message, or last time I opened the chat.
+            // Only conversations I recently opened, newest first, at most 3.
             val convos = repo.getConversations()
-                .sortedByDescending { maxOf(it.date, secure.openedAt(it.address)) }
-                .take(25)
+                .filter { secure.openedAt(it.address) > 0L }
+                .sortedByDescending { secure.openedAt(it.address) }
+                .take(3)
             runOnUiThread { recentsAdapter?.submit(convos) }
         }.start()
     }
