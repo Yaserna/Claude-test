@@ -5,7 +5,8 @@ data class Conversation(
     val address: String,
     val snippet: String,
     val date: Long,
-    val unread: Boolean = false
+    val unread: Boolean = false,
+    val failed: Boolean = false
 )
 
 data class Message(

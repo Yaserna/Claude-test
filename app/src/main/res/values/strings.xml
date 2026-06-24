@@ -40,6 +40,8 @@
     <string name="notif_delete">حذف</string>
     <string name="reply_sent">پاسخ ارسال شد</string>
     <string name="reply_failed">ارسال پاسخ ناموفق بود</string>
+    <string name="send_failed">ارسال نشد</string>
+    <string name="send_failed_notif">پیام ارسال نشد</string>
     <string name="search_hint">جستجوی پیام‌ها</string>
     <string name="delivered">دریافت شد</string>
 

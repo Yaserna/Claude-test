@@ -77,6 +77,11 @@ class HiddenConversationActivity : BaseActivity() {
         binding.selCopy.setOnClickListener { copySelected() }
 
         binding.sendButton.setOnClickListener { send() }
+        // Restore any unsent draft for this hidden conversation.
+        if (address.isNotEmpty()) {
+            binding.input.setText(SecureStore(this).getDraft(address))
+            binding.input.setSelection(binding.input.text?.length ?: 0)
+        }
         loadMessages()
 
         // Reload when a hidden delivery report updates a message's status.
@@ -185,6 +190,8 @@ class HiddenConversationActivity : BaseActivity() {
     override fun onPause() {
         super.onPause()
         resumedNow = false
+        // Keep whatever is typed as a draft so it isn't lost on back/exit.
+        if (address.isNotEmpty()) SecureStore(this).setDraft(address, binding.input.text.toString())
     }
 
     private fun loadMessages() {
@@ -205,6 +212,7 @@ class HiddenConversationActivity : BaseActivity() {
         sendViaSms(address, body, null, deliveredPi)
 
         binding.input.setText("")
+        SecureStore(this).setDraft(address, "")
         loadMessages()
     }
 

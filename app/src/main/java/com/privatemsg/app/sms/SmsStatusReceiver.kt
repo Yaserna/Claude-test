@@ -26,6 +26,7 @@ class SmsStatusReceiver : BroadcastReceiver() {
         }
 
         val uri = intent.data ?: return
+        val failed = intent.action == ACTION_SENT && resultCode != Activity.RESULT_OK
         val values = ContentValues()
         when (intent.action) {
             ACTION_SENT -> values.put(
@@ -40,6 +41,17 @@ class SmsStatusReceiver : BroadcastReceiver() {
             context.contentResolver.update(uri, values, null, null)
         } catch (e: Exception) {
             // Row may be gone; ignore.
+        }
+        // A send failed → alert the user (the conversation also turns red in the list).
+        if (failed) {
+            val address = try {
+                context.contentResolver.query(
+                    uri, arrayOf(Telephony.Sms.ADDRESS), null, null, null
+                )?.use { if (it.moveToFirst()) it.getString(0) else null }
+            } catch (e: Exception) {
+                null
+            }
+            if (!address.isNullOrBlank()) Notifier.showSendFailed(context, address)
         }
     }
 

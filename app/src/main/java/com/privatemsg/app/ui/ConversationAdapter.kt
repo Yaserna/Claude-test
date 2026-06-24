@@ -68,9 +68,9 @@ class ConversationAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val c = items[position]
+        val ctx = holder.itemView.context
         val display = contacts.displayFor(c.address)
         holder.binding.name.text = display
-        holder.binding.snippet.text = c.snippet.toLatinDigits()
         holder.binding.time.text =
             if (c.date > 0) DateUtils.getRelativeTimeSpanString(c.date).toString().toLatinDigits() else ""
 
@@ -79,11 +79,20 @@ class ConversationAdapter(
         holder.binding.name.setTypeface(
             null, if (c.unread) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
         )
-        holder.binding.snippet.setTextColor(
-            holder.itemView.context.getColor(
-                if (c.unread) R.color.textPrimary else R.color.textSecondary
+
+        if (c.failed) {
+            // A message in this conversation failed to send → mark it red.
+            val red = 0xFFE53935.toInt()
+            holder.binding.name.setTextColor(red)
+            holder.binding.snippet.text = ctx.getString(R.string.send_failed)
+            holder.binding.snippet.setTextColor(red)
+        } else {
+            holder.binding.name.setTextColor(ctx.getColor(R.color.textPrimary))
+            holder.binding.snippet.text = c.snippet.toLatinDigits()
+            holder.binding.snippet.setTextColor(
+                ctx.getColor(if (c.unread) R.color.textPrimary else R.color.textSecondary)
             )
-        )
+        }
 
         val first = display.trim().firstOrNull()
         if (first != null && first.isLetter()) {

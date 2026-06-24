@@ -172,6 +172,18 @@ class SecureStore(context: Context) {
     fun openedAt(address: String): Long =
         if (address.isBlank()) 0L else prefs.getLong("opened_" + normalize(address), 0L)
 
+    // ---- Draft (unsent text kept per conversation) ----
+
+    fun getDraft(address: String): String =
+        if (address.isBlank()) "" else prefs.getString("draft_" + normalize(address), "") ?: ""
+
+    fun setDraft(address: String, text: String) {
+        if (address.isBlank()) return
+        val key = "draft_" + normalize(address)
+        if (text.isBlank()) prefs.edit().remove(key).apply()
+        else prefs.edit().putString(key, text).apply()
+    }
+
     // ---- Per-conversation preferred SIM ----
 
     fun getThreadSim(address: String): Int =

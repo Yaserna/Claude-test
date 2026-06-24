@@ -40,7 +40,8 @@ class SmsRepository(private val context: Context) {
                 if (!seen.add(thread)) continue
                 val address = c.getString(iAddr) ?: ""
                 if (hidden.contains(SecureStore.normalize(address))) continue
-                val isInbox = c.getInt(iType) == Telephony.Sms.MESSAGE_TYPE_INBOX
+                val type = c.getInt(iType)
+                val isInbox = type == Telephony.Sms.MESSAGE_TYPE_INBOX
                 val unread = isInbox && c.getInt(iRead) == 0
                 list.add(
                     Conversation(
@@ -48,7 +49,9 @@ class SmsRepository(private val context: Context) {
                         address = address,
                         snippet = c.getString(iBody) ?: "",
                         date = c.getLong(iDate),
-                        unread = unread
+                        unread = unread,
+                        // The latest message failed to send → flag the conversation.
+                        failed = type == Telephony.Sms.MESSAGE_TYPE_FAILED
                     )
                 )
             }
@@ -112,6 +115,28 @@ class SmsRepository(private val context: Context) {
             if (subId >= 0) put(Telephony.Sms.SUBSCRIPTION_ID, subId)
         }
         return context.contentResolver.insert(Telephony.Sms.Sent.CONTENT_URI, values)
+    }
+
+    /**
+     * Inserts a fake received message into a (cover) conversation — used when a
+     * decoy notification is tapped, so the fake text shows there with its time.
+     * Skips insertion if the same message is already present (e.g. tapped twice).
+     */
+    fun insertDecoyInbox(address: String, body: String, date: Long) {
+        val exists = context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI, arrayOf(Telephony.Sms._ID),
+            "${Telephony.Sms.ADDRESS} = ? AND ${Telephony.Sms.DATE} = ? AND ${Telephony.Sms.BODY} = ?",
+            arrayOf(address, date.toString(), body), null
+        )?.use { it.count > 0 } ?: false
+        if (exists) return
+        val values = ContentValues().apply {
+            put(Telephony.Sms.ADDRESS, address)
+            put(Telephony.Sms.BODY, body)
+            put(Telephony.Sms.DATE, date)
+            put(Telephony.Sms.READ, 0)
+            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
+        }
+        context.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, values)
     }
 
     fun deleteMessage(id: Long) {

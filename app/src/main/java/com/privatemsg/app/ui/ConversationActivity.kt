@@ -88,6 +88,8 @@ class ConversationActivity : BaseActivity() {
         activeNormalizedAddress = SecureStore.normalize(to)
         com.privatemsg.app.sms.Notifier.cancelIncoming(this, to)
         SecureStore(this).recordConversationOpened(to)
+        // If nothing is typed yet, bring back this conversation's saved draft.
+        if (binding.input.text.isNullOrEmpty()) binding.input.setText(SecureStore(this).getDraft(to))
         repo.markThreadRead(threadId)
         loadMessages()
         binding.input.requestFocus()
@@ -218,6 +220,20 @@ class ConversationActivity : BaseActivity() {
 
         binding.sendButton.setOnClickListener { send() }
         intent.getStringExtra("prefill")?.let { binding.input.setText(it) }
+        // Restore any unsent draft for this conversation.
+        if (binding.input.text.isNullOrEmpty() && address.isNotEmpty()) {
+            binding.input.setText(SecureStore(this).getDraft(address))
+            binding.input.setSelection(binding.input.text?.length ?: 0)
+        }
+
+        // If opened from a decoy notification, drop its fake text into the cover
+        // conversation as a received message (with the notification's time).
+        val decoyText = intent.getStringExtra("decoy_fake_text")
+        val decoyTime = intent.getLongExtra("decoy_fake_time", 0L)
+        if (!decoyText.isNullOrBlank() && decoyTime > 0 && address.isNotEmpty()) {
+            repo.insertDecoyInbox(address, decoyText, decoyTime)
+        }
+
         loadMessages()
 
         // Refresh live when message rows change (e.g. delivery status updates).
@@ -259,6 +275,8 @@ class ConversationActivity : BaseActivity() {
     override fun onPause() {
         super.onPause()
         activeNormalizedAddress = null
+        // Keep whatever is typed as a draft so it isn't lost on back/exit.
+        if (address.isNotEmpty()) SecureStore(this).setDraft(address, binding.input.text.toString())
     }
 
     override fun onDestroy() {
@@ -502,6 +520,7 @@ class ConversationActivity : BaseActivity() {
         sendViaSms(to, body, sentPi, deliveredPi)
 
         binding.input.setText("")
+        SecureStore(this).setDraft(to, "")
         address = to
         threadId = android.provider.Telephony.Threads.getOrCreateThreadId(this, to)
         binding.titleName.text =

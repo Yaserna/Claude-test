@@ -140,6 +140,35 @@ object Notifier {
         NotificationManagerCompat.from(context).cancel(address.hashCode())
     }
 
+    /** Alerts the user that an outgoing message failed to send. */
+    fun showSendFailed(context: Context, address: String) {
+        ensureChannel(context)
+        val notifId = ("failed_" + address).hashCode()
+        val title = ContactsHelper(context).displayFor(address)
+        val threadId = Telephony.Threads.getOrCreateThreadId(context, address)
+        val tapIntent = Intent(context, ConversationActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("address", address)
+            putExtra("thread_id", threadId)
+        }
+        val tapPi = PendingIntent.getActivity(
+            context, notifId, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_message)
+            .setColor(accentColor(context))
+            .setContentTitle(title)
+            .setContentText(context.getString(R.string.send_failed_notif))
+            .setAutoCancel(true)
+            .setContentIntent(tapPi)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
+        }
+        notify(context, notifId, builder)
+    }
+
     /** A short vibration, used when a message arrives for the conversation already open. */
     fun vibrateTiny(context: Context) {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -174,8 +203,10 @@ object Notifier {
 
         // Each hidden number can have its own decoy (falls back to the global one).
         val name = secure.decoyNameFor(address).ifBlank { context.getString(R.string.app_name) }
-        val text = secure.decoyTextFor(address).ifBlank { " " }
+        val rawText = secure.decoyTextFor(address)
+        val text = rawText.ifBlank { " " }
         val target = secure.decoyTargetFor(address)
+        val now = System.currentTimeMillis()
         // A distinct notification per hidden number, so they don't overwrite each other.
         val notifId = decoyNotifId(address)
 
@@ -187,6 +218,11 @@ object Notifier {
                     "thread_id",
                     Telephony.Threads.getOrCreateThreadId(context, target)
                 )
+                // So tapping the decoy shows the fake text in the cover chat.
+                if (rawText.isNotBlank()) {
+                    putExtra("decoy_fake_text", rawText)
+                    putExtra("decoy_fake_time", now)
+                }
             }
         } else {
             Intent(context, MainActivity::class.java).apply {
