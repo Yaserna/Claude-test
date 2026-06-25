@@ -34,10 +34,14 @@ def _path(rel):
     return p
 
 
-def replace_once(rel, old, new, label):
+def replace_once(rel, old, new, label, optional=False):
     """یک جایگزینی دقیق. باید دقیقاً یک‌بار رخ بدهد.
     منطق idempotent: اگر متن اصلی موجود بود اعمال می‌کنیم؛ فقط وقتی متن اصلی
-    نبود و نسخه‌ی جدید موجود بود، یعنی قبلاً اعمال شده و رد می‌کنیم."""
+    نبود و نسخه‌ی جدید موجود بود، یعنی قبلاً اعمال شده و رد می‌کنیم.
+
+    optional=True یعنی اگر متن اصلی پیدا نشد، به‌جای توقف کامل فقط هشدار می‌دهیم.
+    این برای گاردهای ApplicationLoader است که ممکن است فاصله‌گذاری‌شان کمی فرق کند.
+    """
     p = _path(rel)
     with open(p, "r", encoding="utf-8") as f:
         text = f.read()
@@ -46,9 +50,17 @@ def replace_once(rel, old, new, label):
         if new in text:
             print(f"  - [{label}] از قبل اعمال شده، رد شد.")
             return
-        sys.exit(f"[ERROR] [{label}] متن اصلی پیدا نشد در {rel}\n"
-                 f"        احتمالاً نسخه‌ی سورس با commit ثبت‌شده فرق دارد.")
+        msg = (f"[{label}] متن اصلی پیدا نشد در {rel}\n"
+               f"        احتمالاً نسخه‌ی سورس با commit ثبت‌شده فرق دارد.")
+        if optional:
+            print(f"  ! هشدار (warning): {msg}\n"
+                  f"        این گارد را در صورت کرش، دستی اعمال کن.")
+            return
+        sys.exit(f"[ERROR] {msg}")
     if count > 1:
+        if optional:
+            print(f"  ! هشدار (warning): [{label}] متن اصلی {count} بار پیدا شد در {rel}؛ رد شد.")
+            return
         sys.exit(f"[ERROR] [{label}] متن اصلی {count} بار پیدا شد (انتظار ۱ بار) در {rel}")
     text = text.replace(old, new, 1)
     with open(p, "w", encoding="utf-8") as f:
@@ -76,6 +88,41 @@ def main():
                  "public final static int MAX_ACCOUNT_COUNT = 4;",
                  "public final static int MAX_ACCOUNT_COUNT = %d;" % limit,
                  "accounts: hard limit")
+
+    # ------------------------------------------------------------------
+    # ۱.۵) راه‌اندازی تنبل اکانت‌ها (lazy init) — جلوگیری از کرش هنگام باز شدن
+    #    وقتی MAX_ACCOUNT_COUNT بالا باشد، ApplicationLoader هنگام شروع همه‌ی
+    #    اسلات‌ها را هم‌زمان روی تردهای جدا می‌سازد. این باعث خطای JNI بین تردها
+    #    و IntentReceiverLeaked در DownloadController.<init> و در نهایت SIGABRT
+    #    می‌شود. این گاردها اسلات‌های غیرفعال را در شروع رد می‌کنند تا فقط
+    #    اکانت‌های واقعاً لاگین‌شده ساخته شوند (مثل نسخه‌های قدیمی NekoGram).
+    # ------------------------------------------------------------------
+    al = "TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java"
+    guard = "if (a != 0 && !UserConfig.getInstance(a).isClientActivated()) continue;"
+    print("۱.۵) راه‌اندازی تنبل اکانت‌ها (lazy init) برای جلوگیری از کرش شروع")
+
+    # حلقه‌ی اصلی postInitApplication: قبل از loadConfig/MessagesController/...
+    replace_once(al,
+                 "            UserConfig.getInstance(a).loadConfig();",
+                 "            " + guard + "\n"
+                 "            UserConfig.getInstance(a).loadConfig();",
+                 "lazy-init: main loop", optional=True)
+
+    # حلقه‌ی ContactsController/DownloadController (محل دقیق کرش این لاگ)
+    replace_once(al,
+                 "            ContactsController.getInstance(a).checkAppAccount();\n"
+                 "            DownloadController.getInstance(a);",
+                 "            " + guard + "\n"
+                 "            ContactsController.getInstance(a).checkAppAccount();\n"
+                 "            DownloadController.getInstance(a);",
+                 "lazy-init: contacts/download loop", optional=True)
+
+    # حلقه‌ی گیرنده‌ی تغییر شبکه (network receiver)
+    replace_once(al,
+                 "                ConnectionsManager.getInstance(a).checkConnection();",
+                 "                " + guard + "\n"
+                 "                ConnectionsManager.getInstance(a).checkConnection();",
+                 "lazy-init: network receiver loop", optional=True)
 
     # ------------------------------------------------------------------
     # ۲) باز کردن ترجمه‌ی کل چت/گروه برای همه (بدون نیاز به پریمیوم)
