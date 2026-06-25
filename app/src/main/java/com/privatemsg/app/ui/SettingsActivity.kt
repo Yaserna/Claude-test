@@ -59,6 +59,32 @@ class SettingsActivity : BaseActivity() {
                 setSwatch(binding.receivedColorSwatch, c)
             }
         }
+
+        // Contact info: tap to dial / email.
+        binding.phoneRow.setOnClickListener {
+            startSafely(
+                android.content.Intent(
+                    android.content.Intent.ACTION_DIAL,
+                    android.net.Uri.parse("tel:" + getString(R.string.contact_phone))
+                )
+            )
+        }
+        binding.emailRow.setOnClickListener {
+            startSafely(
+                android.content.Intent(
+                    android.content.Intent.ACTION_SENDTO,
+                    android.net.Uri.parse("mailto:" + getString(R.string.contact_email))
+                )
+            )
+        }
+    }
+
+    private fun startSafely(intent: android.content.Intent) {
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            // No app to handle it; ignore.
+        }
     }
 
     /** A palette of preset bubble colors offered in the picker. */
