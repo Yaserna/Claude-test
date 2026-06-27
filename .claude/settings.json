@@ -1,0 +1,6 @@
+{
+  "env": {
+    "DISABLE_NON_ESSENTIAL_MODEL_CALLS": "1",
+    "MAX_MCP_OUTPUT_TOKENS": "15000"
+  }
+}
