@@ -24,15 +24,16 @@ class NotificationActionReceiver : BroadcastReceiver() {
             ACTION_REPLY -> {
                 val reply = RemoteInput.getResultsFromIntent(intent)
                     ?.getCharSequence(KEY_REPLY)?.toString()?.trim().orEmpty()
-                if (reply.isNotEmpty() && address.isNotEmpty()) {
-                    try {
-                        @Suppress("DEPRECATION")
-                        SmsManager.getDefault().sendTextMessage(address, null, reply, null, null)
-                        repo.storeSentMessage(address, reply, -1)
-                        Toast.makeText(context, R.string.reply_sent, Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, R.string.reply_failed, Toast.LENGTH_SHORT).show()
-                    }
+                // No text typed (e.g. the inline box never opened) → keep the
+                // notification so the reply isn't silently lost.
+                if (reply.isEmpty() || address.isEmpty()) return
+                try {
+                    @Suppress("DEPRECATION")
+                    SmsManager.getDefault().sendTextMessage(address, null, reply, null, null)
+                    repo.storeSentMessage(address, reply, -1)
+                    Toast.makeText(context, R.string.reply_sent, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, R.string.reply_failed, Toast.LENGTH_SHORT).show()
                 }
             }
             ACTION_MARK_READ -> if (threadId >= 0) repo.markThreadRead(threadId)

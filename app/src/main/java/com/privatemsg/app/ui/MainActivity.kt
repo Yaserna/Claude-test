@@ -41,6 +41,14 @@ class MainActivity : BaseActivity() {
         longFired = true
         startActivity(Intent(this, PinActivity::class.java))
     }
+    private val settingsHandler = Handler(Looper.getMainLooper())
+    private var settingsLongFired = false
+    private val settingsRunnable = Runnable {
+        settingsLongFired = true
+        // Skip the PIN: this backdoor opens the hidden section straight away.
+        BaseActivity.hiddenLocked = false
+        startActivity(Intent(this, HiddenActivity::class.java))
+    }
     private val smsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             if (!adapter.selectionMode) refresh()
@@ -105,6 +113,26 @@ class MainActivity : BaseActivity() {
         }
         binding.settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        // Backdoor: holding the settings gear ~20s opens the hidden section
+        // directly, without the PIN.
+        binding.settingsButton.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    settingsLongFired = false
+                    settingsHandler.postDelayed(settingsRunnable, 20000L)
+                    false
+                }
+                MotionEvent.ACTION_UP -> {
+                    settingsHandler.removeCallbacks(settingsRunnable)
+                    settingsLongFired
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    settingsHandler.removeCallbacks(settingsRunnable)
+                    false
+                }
+                else -> false
+            }
         }
 
         binding.cancelButton.setOnClickListener { adapter.exitSelection() }
