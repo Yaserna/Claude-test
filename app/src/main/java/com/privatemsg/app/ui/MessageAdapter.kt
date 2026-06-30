@@ -77,6 +77,11 @@ class MessageAdapter(
         val failed = m.type == FAILED
         val ctx = holder.itemView.context
 
+        // Day separator (Persian/Jalali date) above the first message of each day.
+        val showHeader = position == 0 || !JalaliDate.sameDay(items[position - 1].date, m.date)
+        holder.binding.dateHeader.visibility = if (showHeader) View.VISIBLE else View.GONE
+        if (showHeader) holder.binding.dateHeader.text = JalaliDate.label(m.date).toLatinDigits()
+
         val bubbleColor = if (sent) sentColor else receivedColor
         Linkifier.apply(holder.binding.text, m.body.toLatinDigits(), onNumberClick)
         holder.binding.bubble.background = bubbleBackground(ctx, bubbleColor)

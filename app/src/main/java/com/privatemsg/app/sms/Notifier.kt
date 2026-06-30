@@ -92,9 +92,17 @@ object Notifier {
                 putExtra("notif_id", notifId)
             }
 
-        val replyPi = PendingIntent.getBroadcast(
-            context, notifId * 31 + 1, actionIntent(NotificationActionReceiver.ACTION_REPLY),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        // "Reply" opens the conversation (inline-reply boxes are unreliable on
+        // some MIUI builds, so this guarantees the button always reacts).
+        val replyOpenIntent = Intent(context, ConversationActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("address", address)
+            putExtra("thread_id", threadId)
+            putExtra("focus_input", true)
+        }
+        val replyPi = PendingIntent.getActivity(
+            context, notifId * 31 + 1, replyOpenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val readPi = PendingIntent.getBroadcast(
             context, notifId * 31 + 2, actionIntent(NotificationActionReceiver.ACTION_MARK_READ),
@@ -105,11 +113,9 @@ object Notifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val remoteInput = RemoteInput.Builder(NotificationActionReceiver.KEY_REPLY)
-            .setLabel(context.getString(R.string.notif_reply)).build()
         val replyAction = NotificationCompat.Action.Builder(
             R.drawable.ic_send_up, context.getString(R.string.notif_reply), replyPi
-        ).addRemoteInput(remoteInput).build()
+        ).build()
 
         val title = ContactsHelper(context).displayFor(address)
         // Plain title + text (no MessagingStyle) so only the app icon shows — no

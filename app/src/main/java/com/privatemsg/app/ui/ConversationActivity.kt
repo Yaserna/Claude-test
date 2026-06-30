@@ -234,6 +234,15 @@ class ConversationActivity : BaseActivity() {
             repo.insertDecoyInbox(address, decoyText, decoyTime)
         }
 
+        // Opened from the notification's "Reply" button → pop the keyboard.
+        if (intent.getBooleanExtra("focus_input", false)) {
+            binding.input.requestFocus()
+            binding.input.post {
+                (getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+                    .showSoftInput(binding.input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            }
+        }
+
         loadMessages()
 
         // Refresh live when message rows change (e.g. delivery status updates).
