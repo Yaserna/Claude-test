@@ -11,8 +11,11 @@ android {
         applicationId = "com.privatemsg.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "2.0"
+        // Auto-bump per CI build so every release is a distinct, newer version
+        // (the phone always sees it as an update; the number shows in Settings).
+        val ciRun = (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toIntOrNull() ?: 0
+        versionCode = 2 + ciRun
+        versionName = "2.$ciRun"
     }
 
     buildFeatures {
