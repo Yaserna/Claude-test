@@ -28,6 +28,10 @@ class SettingsActivity : BaseActivity() {
         setContentView(binding.root)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
+        // Visible version so an update can be confirmed at a glance.
+        binding.versionText.text =
+            getString(R.string.app_version, com.privatemsg.app.BuildConfig.VERSION_NAME)
+
         val secure = SecureStore(this)
         binding.deliverySwitch.isChecked = secure.deliveryReportEnabled
         binding.deliverySwitch.setOnCheckedChangeListener { _, checked ->

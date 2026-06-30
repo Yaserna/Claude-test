@@ -34,6 +34,7 @@
 
     <string name="section_about">درباره</string>
     <string name="credit">کد نویسی شده توسط Yaser D.z</string>
+    <string name="app_version">نسخه %1$s</string>
     <string name="section_contact">اطلاعات تماس</string>
     <string name="contact_phone_label">شماره تماس</string>
     <string name="contact_email_label">ایمیل</string>
