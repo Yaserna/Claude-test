@@ -59,6 +59,18 @@ class SmsRepository(private val context: Context) {
         return list
     }
 
+    /** Bodies of the still-unread incoming messages in a thread (oldest → newest). */
+    fun unreadBodies(threadId: Long): List<String> {
+        val list = mutableListOf<String>()
+        context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI, arrayOf(Telephony.Sms.BODY),
+            "${Telephony.Sms.THREAD_ID} = ? AND ${Telephony.Sms.TYPE} = ? AND ${Telephony.Sms.READ} = 0",
+            arrayOf(threadId.toString(), Telephony.Sms.MESSAGE_TYPE_INBOX.toString()),
+            "${Telephony.Sms.DATE} ASC"
+        )?.use { c -> while (c.moveToNext()) list.add(c.getString(0) ?: "") }
+        return list
+    }
+
     fun getMessages(threadId: Long): List<Message> {
         val list = mutableListOf<Message>()
         val projection = arrayOf(

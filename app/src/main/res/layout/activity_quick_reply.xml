@@ -17,27 +17,12 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/msgOlder"
+    <LinearLayout
+        android:id="@+id/messagesContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:maxLines="2"
-        android:ellipsize="end"
-        android:textColor="@color/textSecondary"
-        android:textSize="14sp"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/msgNewer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:maxLines="3"
-        android:ellipsize="end"
-        android:textColor="@color/textPrimary"
-        android:textSize="15sp"
-        android:visibility="gone" />
+        android:orientation="vertical" />
 
     <LinearLayout
         android:layout_width="match_parent"

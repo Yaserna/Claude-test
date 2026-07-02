@@ -7,6 +7,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import com.privatemsg.app.R
@@ -49,17 +50,45 @@ class QuickReplyActivity : BaseActivity() {
         binding.input.requestFocus()
     }
 
+    /** Renders the last 5 messages as small chat bubbles (conversation colors). */
     private fun showLastMessages() {
         if (threadId <= 0) return
-        val last = SmsRepository(this).getMessages(threadId).takeLast(2)
-        if (last.size >= 2) bindLine(binding.msgOlder, last[0])
-        if (last.isNotEmpty()) bindLine(binding.msgNewer, last.last())
+        val secure = com.privatemsg.app.data.SecureStore(this)
+        val sentColor = secure.sentBubbleColor
+        val recvColor = secure.receivedBubbleColor
+        val d = resources.displayMetrics.density
+        for (m in SmsRepository(this).getMessages(threadId).takeLast(5)) {
+            val sent = m.type != 1
+            val color = if (sent) sentColor else recvColor
+            val bubble = android.widget.TextView(this).apply {
+                text = m.body.toLatinDigits()
+                maxLines = 4
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                maxWidth = (220 * d).toInt()
+                textSize = 13f
+                setTextColor(if (isLight(color)) 0xFF000000.toInt() else 0xFFFFFFFF.toInt())
+                setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 14f * d
+                    setColor(color)
+                }
+            }
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (3 * d).toInt()
+                // Sent on the right (START in RTL), received on the left (END).
+                gravity = if (sent) Gravity.START else Gravity.END
+            }
+            binding.messagesContainer.addView(bubble, lp)
+        }
     }
 
-    private fun bindLine(view: android.widget.TextView, m: Message) {
-        val prefix = if (m.type != 1) getString(R.string.you_prefix) else ""
-        view.text = (prefix + m.body).toLatinDigits()
-        view.visibility = View.VISIBLE
+    private fun isLight(color: Int): Boolean {
+        val r = (color shr 16) and 0xFF
+        val g = (color shr 8) and 0xFF
+        val b = color and 0xFF
+        return (0.299 * r + 0.587 * g + 0.114 * b) > 150
     }
 
     private fun send() {

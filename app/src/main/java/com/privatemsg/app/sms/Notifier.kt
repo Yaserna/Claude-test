@@ -13,6 +13,7 @@ import androidx.core.app.RemoteInput
 import com.privatemsg.app.R
 import com.privatemsg.app.data.ContactsHelper
 import com.privatemsg.app.data.SecureStore
+import com.privatemsg.app.data.SmsRepository
 import com.privatemsg.app.ui.ConversationActivity
 import com.privatemsg.app.ui.MainActivity
 
@@ -118,20 +119,33 @@ object Notifier {
         ).build()
 
         val title = ContactsHelper(context).displayFor(address)
-        // Plain title + text (no MessagingStyle) so only the app icon shows — no
-        // extra generated sender avatar. The inline reply still works via the action.
+        // All still-unread messages from this sender, so several in a row show
+        // together with a count instead of only the last one.
+        val unread = SmsRepository(context).unreadBodies(threadId)
+        val count = if (unread.isEmpty()) 1 else unread.size
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_message)
             .setColor(accentColor(context))
             .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(tapPi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .addAction(R.drawable.ic_mark_read, context.getString(R.string.notif_mark_read), readPi)
-            .addAction(replyAction)
             .addAction(R.drawable.ic_delete, context.getString(R.string.notif_delete), deletePi)
+            .addAction(replyAction)
+
+        if (count > 1) {
+            val inbox = NotificationCompat.InboxStyle()
+            unread.takeLast(7).forEach { inbox.addLine(it) }
+            inbox.setSummaryText(context.getString(R.string.n_new_messages, count))
+            builder.setStyle(inbox)
+                .setContentText(context.getString(R.string.n_new_messages, count))
+                .setNumber(count)
+        } else {
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setContentText(body)
+        }
 
         // On pre-O devices the channel doesn't exist; ask for sound + vibration here.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {

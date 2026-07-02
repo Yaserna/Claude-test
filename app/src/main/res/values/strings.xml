@@ -49,6 +49,7 @@
     <string name="send_failed">ارسال نشد</string>
     <string name="send_failed_notif">پیام ارسال نشد</string>
     <string name="you_prefix">شما: </string>
+    <string name="n_new_messages">%1$d پیام جدید</string>
     <string name="search_hint">جستجوی پیام‌ها</string>
     <string name="delivered">دریافت شد</string>
 
