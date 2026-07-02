@@ -13,6 +13,16 @@
         <item name="materialAlertDialogTheme">@style/AppDialogTheme</item>
     </style>
 
+    <!-- Floating quick-reply window opened from the notification's Reply button. -->
+    <style name="Theme.QuickReply" parent="Theme.Material3.Dark.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowCloseOnTouchOutside">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorControlActivated">@color/accent</item>
+    </style>
+
     <!-- Symmetric insets so popup menus/dialogs stay centered in RTL (don't drift right). -->
     <style name="AppDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="backgroundInsetStart">24dp</item>

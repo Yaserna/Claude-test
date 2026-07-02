@@ -48,6 +48,7 @@
     <string name="reply_failed">ارسال پاسخ ناموفق بود</string>
     <string name="send_failed">ارسال نشد</string>
     <string name="send_failed_notif">پیام ارسال نشد</string>
+    <string name="you_prefix">شما: </string>
     <string name="search_hint">جستجوی پیام‌ها</string>
     <string name="delivered">دریافت شد</string>
 

@@ -92,13 +92,13 @@ object Notifier {
                 putExtra("notif_id", notifId)
             }
 
-        // "Reply" opens the conversation (inline-reply boxes are unreliable on
-        // some MIUI builds, so this guarantees the button always reacts).
-        val replyOpenIntent = Intent(context, ConversationActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        // "Reply" opens a small floating quick-reply window (not the whole app),
+        // reliable on MIUI where inline-reply boxes often don't open.
+        val replyOpenIntent = Intent(context, com.privatemsg.app.ui.QuickReplyActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra("address", address)
             putExtra("thread_id", threadId)
-            putExtra("focus_input", true)
+            putExtra("notif_id", notifId)
         }
         val replyPi = PendingIntent.getActivity(
             context, notifId * 31 + 1, replyOpenIntent,
