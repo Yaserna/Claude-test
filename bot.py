@@ -53,7 +53,7 @@ class Bot:
         self.unknown_since = None
         self._last_stats_log = 0.0
 
-        # شمارنده‌ی ریستارت‌های پشت‌سرهم؛ با هر موفقیت (ساخت کیف‌پول) صفر می‌شود.
+        # شمارنده‌ی ریستارت‌های پشت‌سرهمِ مرحله‌ی ZK login؛ با هر موفقیت (ساخت کیف‌پول) صفر می‌شود.
         # وقتی به max_consecutive_restarts برسد، کل اسکریپت با پیام Telegram Full می‌ایستد.
         self.consecutive_restarts = 0
         self.max_restarts = self.tuning.get("max_consecutive_restarts", 10)
@@ -125,9 +125,10 @@ class Bot:
             time.sleep(0.8)
         return False
 
-    def restart_app(self, why, count=True):
-        # ریستارت‌های «گیرکردنی» را می‌شماریم؛ اگر بیش از حد پشت‌سرهم شد، کل اسکریپت می‌ایستد.
-        # ریستارت‌های عادیِ بخشی از روند (مثل بعدِ logout) با count=False شمرده نمی‌شوند.
+    def restart_app(self, why, count=False):
+        # فقط ریستارتِ مرحله‌ی ZK login را می‌شماریم (با count=True از handle_login).
+        # سایر ریستارت‌ها (NAME, DEPLOY, PW_CREATE, UNKNOWN, logout, ...) شمرده نمی‌شوند.
+        # اگر ریستارت‌های ZK بیش از حد پشت‌سرهم شد، کل اسکریپت می‌ایستد.
         if count:
             self.consecutive_restarts += 1
             if self.consecutive_restarts >= self.max_restarts:
@@ -174,7 +175,7 @@ class Bot:
         page, _ = self.peek()
         if page == "LOGIN":
             self.log.warning("still on ZK/LOGIN after relaunch -> restart from scratch")
-            self.restart_app("stuck on ZK login")
+            self.restart_app("stuck on ZK login", count=True)
         else:
             self.log.info("left ZK login -> now on %s", page)
 
@@ -367,7 +368,7 @@ class Bot:
             idx = self.storage.save_wallet(wn, seed)
             if idx:
                 self.stats["created"] += 1
-                # موفقیتِ واقعی -> شمارنده‌ی ریستارت‌های پشت‌سرهم را صفر کن
+                # موفقیتِ واقعی -> شمارنده‌ی ریستارت‌های ZK login را صفر کن
                 self.consecutive_restarts = 0
                 self.log.info("SAVED row %d - '%s'", idx, wn)
         self.storage.remove_name(wn)
