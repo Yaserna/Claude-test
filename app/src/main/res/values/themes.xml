@@ -23,6 +23,12 @@
         <item name="colorControlActivated">@color/accent</item>
     </style>
 
+    <!-- Circular crop for contact photos in the conversation list. -->
+    <style name="CircleAvatar">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <!-- Symmetric insets so popup menus/dialogs stay centered in RTL (don't drift right). -->
     <style name="AppDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="backgroundInsetStart">24dp</item>

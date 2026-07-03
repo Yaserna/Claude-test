@@ -94,14 +94,28 @@ class ConversationAdapter(
             )
         }
 
-        val first = display.trim().firstOrNull()
-        if (first != null && first.isLetter()) {
-            holder.binding.avatarLetter.text = first.uppercaseChar().toString()
-            holder.binding.avatarLetter.visibility = View.VISIBLE
+        // Prefer the saved contact's photo; otherwise fall back to a letter/icon.
+        val photo = contacts.photoUriFor(c.address)
+        if (photo != null) {
+            try {
+                holder.binding.avatarPhoto.setImageURI(android.net.Uri.parse(photo))
+            } catch (e: Exception) {
+                holder.binding.avatarPhoto.setImageURI(null)
+            }
+            holder.binding.avatarPhoto.visibility = View.VISIBLE
+            holder.binding.avatarLetter.visibility = View.GONE
             holder.binding.avatarIcon.visibility = View.GONE
         } else {
-            holder.binding.avatarLetter.visibility = View.GONE
-            holder.binding.avatarIcon.visibility = View.VISIBLE
+            holder.binding.avatarPhoto.visibility = View.GONE
+            val first = display.trim().firstOrNull()
+            if (first != null && first.isLetter()) {
+                holder.binding.avatarLetter.text = first.uppercaseChar().toString()
+                holder.binding.avatarLetter.visibility = View.VISIBLE
+                holder.binding.avatarIcon.visibility = View.GONE
+            } else {
+                holder.binding.avatarLetter.visibility = View.GONE
+                holder.binding.avatarIcon.visibility = View.VISIBLE
+            }
         }
 
         if (selectionMode) {

@@ -38,8 +38,28 @@ class ContactsHelper(private val context: Context) {
         return name
     }
 
+    /** Contact photo (thumbnail) URI for a number, or null if none/unknown. */
+    fun photoUriFor(number: String): String? {
+        if (number.isBlank()) return null
+        photoCache[number]?.let { return it.ifEmpty { null } }
+        var uri: String? = null
+        try {
+            val lookup = Uri.withAppendedPath(
+                ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number)
+            )
+            context.contentResolver.query(
+                lookup, arrayOf(ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI), null, null, null
+            )?.use { c -> if (c.moveToFirst()) uri = c.getString(0) }
+        } catch (e: SecurityException) {
+            // READ_CONTACTS not granted.
+        }
+        photoCache[number] = uri ?: ""
+        return uri
+    }
+
     companion object {
         // Shared across instances so a number is looked up at most once per session.
         private val cache = ConcurrentHashMap<String, String>()
+        private val photoCache = ConcurrentHashMap<String, String>()
     }
 }
