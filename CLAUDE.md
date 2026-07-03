@@ -509,3 +509,211 @@ SEND/SENDTO sms/… + ACTION_SEND text/plain share). `<application android:name=
   the user deletes it on GitHub (see §9.0).
 - Everything from §6 / §8.13 still applies (MMS not built; delivery tick depends
   on carrier; etc.).
+
+---
+
+## 10) Session 4 — continued work (APPEND-ONLY; everything in §0–§9 is unchanged)
+
+> Fourth working session (Claude Code on the web), on branch **`Mi-Message`** of
+> **`Yaserna/Yaser-D.z`**. This section records every user request (verbatim
+> Persian, quoted) and how it was resolved, plus new files, the new versioning
+> scheme, and architecture deltas. Where a value here differs from above, THIS is
+> the newest truth. Delivered APK is installed from the same `latest` Release URL.
+
+### 10.0 Build / versioning change (IMPORTANT — newest truth)
+- **`app/build.gradle.kts` now auto-bumps the version on every CI build** from the
+  GitHub Actions run number:
+  ```
+  val ciRun = (System.getenv("GITHUB_RUN_NUMBER") ?: "0").toIntOrNull() ?: 0
+  versionCode = 2 + ciRun
+  versionName = "2.$ciRun"
+  ```
+  Plus `buildFeatures { buildConfig = true }` so `BuildConfig.VERSION_NAME` exists.
+- **Why:** the user repeatedly saw "no change after update" because the old fixed
+  `versionCode = 1` sometimes made the phone skip the in-place update. Now every
+  build is a strictly-newer version and the phone always replaces it.
+- **Settings shows the version** (`versionText`, from `BuildConfig.VERSION_NAME`,
+  string `app_version` = "نسخه %1$s") so an update can be confirmed at a glance.
+  This is the reliable way to tell which build the user is actually running:
+  `versionName "2.N"` ⇔ GitHub Actions **run #N** ⇔ that run's `head_sha`.
+- **Diagnosing "did it update?":** map `2.N` → run #N via
+  `mcp__github__actions_list` (list_workflow_runs) and read that run's `head_sha`.
+  This already saved us once: the user's "2.60" was commit `dfd5918` (one build
+  *before* the reply/date-grouping changes, which were `2.61`).
+- GitHub Actions runners were badly degraded on several days this session (builds
+  hung ~30 min or the status API lagged ~50 min). Workarounds used: cancel the
+  hung run + re-trigger via `mcp__github__actions_run_trigger` (run_workflow /
+  cancel_workflow_run); confirm real completion via the **Release asset**
+  `created_at`/`digest` (`mcp__github__get_release_by_tag`), NOT the lagging
+  job-status. `list_workflow_runs` output is large — parse the saved file with
+  python/jq for `run_number`, `head_sha`, `status`, `conclusion`.
+
+### 10.1 New source files (Session 4)
+- **`ui/JalaliDate.kt`** — Gregorian→Jalali (Shamsi) converter; `sameDay(a,b)` and
+  `label(time)` → "امروز" / "دیروز" / "10 تیر 1403" (Persian month names).
+- **`ui/QuickReplyActivity.kt`** — the floating quick-reply window opened from the
+  notification's Reply button (see §10.14). Layout `activity_quick_reply.xml`,
+  bg `drawable/quick_reply_bg.xml`, theme `Theme.QuickReply` (dialog/translucent),
+  manifest: `taskAffinity=""`, `excludeFromRecents`, `windowSoftInputMode`.
+- New drawables/strings/styles: `drawable/date_chip.xml` (chat day-separator chip),
+  `style/CircleAvatar` (circular contact photos), `style/Theme.QuickReply`,
+  strings `send_failed`, `send_failed_notif`, `you_prefix`, `n_new_messages`,
+  `app_version`, `section_contact`/`contact_phone*`/`contact_email*`.
+
+### 10.2 "روی شاخه Mi-message ادامه بده" (re-supplied memory files)
+Confirmed on `Mi-Message`, all 77 files intact; continued here.
+
+### 10.3 Five items → build `09316e7`? no: `09c0120`
+User: **«چند باگ… (۱) با بازکردن پیام اعلان پاک نمیشه (۲) آیکون اپ توی اعلان گاهی
+سفید میشه (۳) از بخش مخفی که با برگشت خارج میشم، بعضی وقت‌ها با برگشتِ دوباره مجدد
+وارد بخش مخفی میشم یا وارد نوشتنِ پیام جدید با یکی از شماره‌های مخفی (۴) اعلانِ
+مخفی صدا نده، فقط لرزش؛ اعلان‌های اصلی صدا لازم (۵) قابلیت تغییر رنگ حباب‌ها»**.
+Resolved (`09c0120`):
+1. `ConversationActivity.onResume` → `Notifier.cancelIncoming(address)`.
+2. Removed reliance on white small-icon; added `.setColor(accent)` (later a
+   large-icon was tried then removed — see §10.6/§10.7).
+3. **Hidden back-stack rewritten**: `BaseActivity` now has a `@Volatile companion
+   hiddenLocked`; on background it `finish()`es (never re-launches Main) and sets
+   `hiddenLocked=true`; any surviving hidden screen finishes in `onResume` while
+   locked; `PinActivity.openHidden()` clears the flag. Kills the re-entry bug.
+4. **Decoy notifications got their own silent channel** `"decoy_sms_silent"`
+   (`setSound(null)`, vibration on); real ones keep `"incoming_sms"` with sound.
+5. **Bubble colors**: `SecureStore.sentBubbleColor` / `receivedBubbleColor`
+   (defaults green `0xFF1FA055` / grey `0xFF2C2C2E`); `MessageAdapter` paints a
+   rounded `GradientDrawable` and picks black/white text by luminance
+   (`isLight`); Settings has a color-grid picker (`pickColor`) + swatches.
+
+### 10.4 Open-chat vibration + swap buttons → `eb44f4e`
+User: **«وقتی توی گفتگو هستم و پیام جدیدی از همون گفتگو میاد نباید اعلان بگیرم؛
+یک لرزش ریز کافیه. و جای دکمه‌ی پاسخ و خوانده‌شده رو عوض کن»**.
+- `ConversationActivity.activeNormalizedAddress` (companion) tracks the open chat
+  (set in `onResume`, cleared in `onPause`). `SmsReceiver`: if the incoming
+  sender == the open chat → `Notifier.vibrateTiny()` and **skip** the
+  notification (the open chat updates live and stays read). Added `VIBRATE`
+  permission. Swapped Reply/Mark-read order in the notification.
+
+### 10.5 Play Protect "may be harmful" / "built for old Android" (no code)
+User asked why Play warns, if the package name or ADB high-privileges could fix
+it. **Answer given (honest challenge):** it's not fixable — Play Protect flags any
+sideloaded app that requests **SMS permissions**; `targetSdk` is already 34 (the
+"old Android" line is generic scare text, not our target); renaming the package
+won't help and impersonating a known app makes it worse; ADB `pm grant` can't add
+the capability. Only real fix is disabling Play Protect. No code change.
+
+### 10.6 "Notification is two parts" (screenshot) + compose recents + number menu → `d7284b8`
+User (with image): **«اعلان دوتیکه میشه… فقط آیکون اصلی اپ + متن. توی نوشتن پیام
+جدید پیشنهادِ گفتگوهای اخیر… با انتخاب مخاطب/تایپ شماره مستقیم وارد گفتگوی قبلی
+بشم… با کلیک روی عددِ داخل پیام، اگه مخاطب ذخیره‌ست نامش بالای منو نشون داده بشه»**.
+- Removed the extra large-icon; kept accent-tinted small icon.
+- Compose (`ConversationActivity` in compose mode) shows **recent conversations**
+  in the message list as recipient suggestions (`recentsAdapter`); tapping one, or
+  picking a contact, or typing a number + IME-Done → `enterConversation(number)`
+  which opens that contact's existing thread.
+- `BaseActivity.showNumberMenu` looks up `ContactsHelper.nameFor(digits)` and
+  shows it as the popup title (`showListMenu(items, title=…)`).
+
+### 10.7 Still two parts (yellow "M" avatar) + suggestions by opened → `51fbbba`
+User (image): the extra icon is a generated **avatar (M)**; want only the app icon
++ message; and suggestions should include chats I recently **opened**.
+- Dropped **MessagingStyle** entirely → plain `BigTextStyle` (title + text), so no
+  generated avatar. (Inline reply was kept as a plain action — later reworked, see
+  §10.13/§10.14.)
+- `SecureStore.recordConversationOpened/openedAt`; compose recents ranked by
+  `max(lastMessageDate, openedAt)`.
+
+### 10.8 Suggestions: only opened, max 3 → `a3b3840`
+User: **«توی پیشنهادات فقط گفتگوهای اخیراً بازشده، حداکثر ۳ تا»**.
+`loadRecents()` → `filter { openedAt>0 }.sortedByDescending{openedAt}.take(3)`.
+
+### 10.9 Drafts + failed-send + decoy message in cover chat → `1b1686b`
+User: **«با زدنِ برگشت متنِ تایپ‌شده از دست میره، draft بذار… وقتی پیامی ارسال
+نمیشه گفتگو با رنگ قرمز و یک اعلانِ ارسال‌نشدن… وقتی روی اعلانِ جعلی می‌زنم و به
+گفتگوی پوششی میرم، متنِ جعلی همونجا به‌صورت پیامِ دریافتی با ساعتِ دریافت نمایش
+داده بشه»**.
+- **Drafts**: `SecureStore.getDraft/setDraft(address,text)`; restored on open,
+  saved in `onPause`, cleared on send — in normal AND hidden chats.
+- **Failed send**: `Conversation.failed`; `SmsRepository.getConversations` flags a
+  thread whose latest row is `MESSAGE_TYPE_FAILED`; `ConversationAdapter` paints
+  that row red with "ارسال نشد"; `SmsStatusReceiver` posts
+  `Notifier.showSendFailed(address)` on a failed SENT result.
+- **Decoy message in cover chat**: `Notifier.showDecoy` puts `decoy_fake_text` +
+  `decoy_fake_time` on the tap intent; `ConversationActivity` inserts it via
+  `SmsRepository.insertDecoyInbox(address,body,date)` (READ=0 inbox, deduped) so
+  the fake text appears in the cover conversation as a received message.
+
+### 10.10 Contact info in Settings → `d420e88`
+User: **«توی تنظیمات شماره تلفن و ایمیلم رو اضافه کن: +989035505150 و
+Yas.nahouk@Gmail.com»**. Added a "اطلاعات تماس" section (tappable rows: dial /
+mailto), strings `contact_phone`/`contact_email`.
+
+### 10.11 CLAUDE.md + .claude/settings.json → `b57dc51`
+User asked to create root `CLAUDE.md` (token-saving agreement) and
+`.claude/settings.json`. **Because `CLAUDE.md` already held the full project
+memory, it was NOT overwritten** — the token-saving agreement was **prepended** to
+the top (memory preserved below). `.claude/settings.json` created verbatim
+(`DISABLE_NON_ESSENTIAL_MODEL_CALLS=1`, `MAX_MCP_OUTPUT_TOKENS=15000`).
+
+### 10.12 Reply "no reaction"/disappears + 20s settings backdoor → `2982abc`
+User: **«گاهی با زدنِ پاسخ اعلان ناپدید میشه… یک در پشتی: با ۲۰ ثانیه نگه‌داشتنِ
+دکمه‌ی تنظیمات، بدون رمز وارد بخش مخفی بشم»**.
+- `NotificationActionReceiver`: on REPLY with empty text, **return without
+  cancelling** (so the notification isn't silently lost).
+- **Backdoor**: `MainActivity` — holding the settings gear ~20s
+  (`settingsRunnable`) sets `BaseActivity.hiddenLocked=false` and opens
+  `HiddenActivity` directly (no PIN). Normal tap still opens Settings.
+
+### 10.13 Version scheme → `ee881da` (manual bump + version display) then `dfd5918` (auto)
+User: **«هیچ تغییری ایجاد نشد!!!!!»** then **«از این به بعد هر بار نسخه رو تغییر
+بده»**. Implemented §10.0 (auto-version from CI, shown in Settings).
+
+### 10.14 Reply flow: chat → floating window → `ba0042a`, then `9e9646a`, then `1c556b3`
+- `ba0042a`: Reply first opened the **conversation** (reliable on MIUI, unlike
+  inline reply) + **Jalali date separators** in chats (`item_message.xml` has a
+  centered `dateHeader` chip; `MessageAdapter` shows it at each day boundary).
+- User: **«با زدنِ پاسخ کلِ اپ باز میشه که نباید؛ یک پنجره‌ی شناور شاملِ آخرین
+  پیام‌ها برای پاسخ بدونِ باز شدنِ اپ»**. → `9e9646a`: **`QuickReplyActivity`**
+  (floating dialog, docked bottom, tap-outside closes) shows the last messages +
+  a reply box; sends and cancels the notification without opening the app.
+- User: **«اعلان فقط پیامِ آخر رو نشون میده و شمارش نداره… جای پاسخ و حذف رو عوض
+  کن… پنجره‌ی پاسخ یک پس‌زمینه از اپ هم باز میکنه که نباید… ۵ پیامِ آخر به‌صورت
+  حبابیِ رنگیِ خودِ گفتگو ولی کوچکتر»**. → `1c556b3`:
+  * Notification now stacks all still-unread messages of the sender via
+    `NotificationCompat.InboxStyle` + `.setNumber(count)` + "N پیام جدید"
+    (`SmsRepository.unreadBodies(threadId)`). Reply/Delete order swapped.
+  * `QuickReplyActivity` got `taskAffinity=""` (own task, so the app no longer
+    shows behind the popup) and now renders the **last 5 messages** as small
+    colored bubbles (conversation `sentBubbleColor`/`receivedBubbleColor`,
+    smaller text, luminance-based text color).
+
+### 10.15 Contact profile photo in the list → `a01d68f`
+User: **«توی لیستِ گفتگوها اگه مخاطب عکس پروفایل داره نمایشش بده»**.
+`ContactsHelper.photoUriFor(number)` (cached PhoneLookup `PHOTO_THUMBNAIL_URI`);
+`item_conversation.xml` got a circular `ShapeableImageView avatarPhoto`
+(`style/CircleAvatar`); `ConversationAdapter` shows the photo when present, else
+falls back to the letter/person icon.
+
+### 10.16 Flash / disappearing SMS discussion (no code)
+User asked to **send Flash (Class 0) SMS**, and whether ADB high-privileges could
+enable it. **Answer (honest challenge):** not possible from a normal app — the
+flash marker is the DCS byte in the SMS PDU and Android's public/hidden APIs don't
+expose it (`SmsManager.sendTextMessage` always sends normal class). More
+permissions/ADB `pm grant` won't add the capability. The only theoretical path is
+root + direct modem AT commands (`AT+CMGS` with a Class-0 PDU), which is locked on
+modern Xiaomi/HyperOS and out of scope. Offered alternatives (special display of
+*received* flash, or an in-app "disappearing message" that only works between two
+of our apps). No code written.
+
+### 10.17 Session 4 build history (branch `Mi-Message`, all green)
+`09c0120` → `eb44f4e` → `d7284b8` → `51fbbba` → `a3b3840` → `1b1686b` → `d420e88`
+→ `b57dc51` → `2982abc` → `ee881da` → `dfd5918` → `ba0042a` → `9e9646a` →
+`1c556b3` → `a01d68f`. Latest delivered = **version 2.64** (run #64, `a01d68f`).
+
+### 10.18 Outstanding / to-verify (Session 4)
+- Everything from §6 / §8.13 / §9.6 still applies (MMS not built; delivery tick
+  depends on carrier).
+- Flash-SMS **sending** is not feasible (see §10.16).
+- Quick-reply uses the **default** SIM (no per-thread SIM picker in the popup).
+- Contact-photo lookup runs per row on the UI thread (cached after first hit);
+  fine for personal use, could be moved to background if a huge contact list lags.
+- `NotificationActionReceiver`'s RemoteInput reply path is now unused (Reply opens
+  `QuickReplyActivity`); the `androidx.core.app.RemoteInput` import is dead code.
