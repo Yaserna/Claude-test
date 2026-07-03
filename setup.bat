@@ -1,24 +1,25 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 REM =====================================================================
 REM  Custom Telegram Fork - Setup for Windows
-REM  این اسکریپت سورس تلگرام را دانلود و تغییرات اختصاصی را اعمال می‌کند.
-REM  پیش‌نیاز: Git و Python نصب باشند.
+REM  Downloads the Telegram source and applies our custom modifications.
+REM  Requires: Git and Python.
 REM =====================================================================
 
-echo === راه‌اندازی فورک اختصاصی تلگرام (ویندوز) ===
+echo === Custom Telegram fork setup (Windows) ===
 echo.
 
 where git >nul 2>nul
 if errorlevel 1 (
-  echo [خطا] Git نصب نیست. از اینجا نصب کن: https://git-scm.com/download/win
+  echo [ERROR] Git is not installed. Get it from: https://git-scm.com/download/win
   goto :fail
 )
 
 where python >nul 2>nul
 if errorlevel 1 (
-  echo [خطا] Python نصب نیست. از اینجا نصب کن: https://www.python.org/downloads/
-  echo        هنگام نصب حتماً گزینه "Add Python to PATH" را تیک بزن.
+  echo [ERROR] Python is not installed. Get it from: https://www.python.org/downloads/
+  echo         During install, be sure to check "Add Python to PATH".
   goto :fail
 )
 
@@ -26,39 +27,39 @@ for /f "delims=" %%i in ('python -c "import json;print(json.load(open('build_con
 for /f "delims=" %%i in ('python -c "import json;print(json.load(open('build_config.json'))['upstream_commit'])"') do set COMMIT=%%i
 
 if exist Telegram (
-  echo پوشه Telegram از قبل وجود دارد، از کلون رد می‌شویم.
+  echo Telegram folder already exists, skipping clone.
 ) else (
-  echo در حال دانلود سورس تلگرام... (حدود ۱ گیگابایت، کمی صبر کن)
+  echo Downloading the Telegram source... (about 1 GB, please wait)
   git clone %REPO% Telegram
   if errorlevel 1 (
-    echo [خطا] دانلود سورس ناموفق بود.
+    echo [ERROR] Source download failed.
     goto :fail
   )
 )
 
-echo در حال تنظیم روی نسخه‌ی ثابت‌شده %COMMIT% ...
+echo Checking out the pinned commit %COMMIT% ...
 git -C Telegram checkout %COMMIT%
 if errorlevel 1 (
-  echo [خطا] تنظیم نسخه ناموفق بود.
+  echo [ERROR] Checkout failed.
   goto :fail
 )
 
-echo در حال اعمال تغییرات اختصاصی...
+echo Applying custom modifications...
 python apply_mods.py
 if errorlevel 1 (
-  echo [خطا] اعمال تغییرات ناموفق بود.
+  echo [ERROR] Applying modifications failed.
   goto :fail
 )
 
 echo.
-echo === تمام شد! ===
-echo حالا پوشه‌ی "Telegram" را در Android Studio باز کن و Build بزن.
-echo راهنمای کامل: فایل BUILD-GUIDE-FA.md را بخوان.
+echo === Done! ===
+echo Now open the "Telegram" folder in Android Studio and Build.
+echo Full guide: see BUILD-GUIDE-FA.md
 goto :end
 
 :fail
 echo.
-echo راه‌اندازی متوقف شد. خطای بالا را برطرف کن و دوباره اجرا کن.
+echo Setup stopped. Fix the error above and run again.
 exit /b 1
 
 :end

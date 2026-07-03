@@ -3,10 +3,6 @@
 """
 apply_mods.py
 -------------
-این اسکریپت تغییرات اختصاصی ما را روی سورس تلگرام (که قبلاً توسط setup کلون شده)
-اعمال می‌کند. هر تغییر دقیق است: اگر متن اصلی پیدا نشود، با خطا متوقف می‌شود
-تا اگر نسخه‌ی سورس عوض شد، متوجه شویم.
-
 Applies our custom modifications onto the (already cloned) Telegram source.
 Each edit is exact and fails loudly if the original text is not found, so that
 upstream drift is caught instead of silently producing a broken build.
@@ -16,9 +12,9 @@ import json
 import os
 import sys
 
-# ریشه‌ی پروژه (جایی که این اسکریپت قرار دارد)
+# Project root (where this script lives)
 ROOT = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(ROOT, "Telegram")  # سورس کلون‌شده‌ی تلگرام
+SRC = os.path.join(ROOT, "Telegram")  # cloned Telegram source
 
 
 def load_config():
@@ -29,76 +25,75 @@ def load_config():
 def _path(rel):
     p = os.path.join(SRC, rel)
     if not os.path.isfile(p):
-        sys.exit(f"[ERROR] فایل پیدا نشد (file not found): {rel}\n"
-                 f"        مطمئن شو اول setup را اجرا کرده‌ای تا سورس کلون شود.")
+        sys.exit(f"[ERROR] file not found: {rel}\n"
+                 f"        Make sure you ran setup first so the source is cloned.")
     return p
 
 
 def replace_once(rel, old, new, label, optional=False):
-    """یک جایگزینی دقیق. باید دقیقاً یک‌بار رخ بدهد.
-    منطق idempotent: اگر متن اصلی موجود بود اعمال می‌کنیم؛ فقط وقتی متن اصلی
-    نبود و نسخه‌ی جدید موجود بود، یعنی قبلاً اعمال شده و رد می‌کنیم.
+    """One exact replacement. Must happen exactly once.
+    Idempotent: if the new text is already present, we skip.
 
-    optional=True یعنی اگر متن اصلی پیدا نشد، به‌جای توقف کامل فقط هشدار می‌دهیم.
-    این برای گاردهای ApplicationLoader است که ممکن است فاصله‌گذاری‌شان کمی فرق کند.
+    optional=True means: if the original text is not found, only warn instead
+    of stopping. Used for the ApplicationLoader guards whose spacing may drift.
     """
     p = _path(rel)
     with open(p, "r", encoding="utf-8") as f:
         text = f.read()
     if new in text:
-        # چک قبل از شمارشِ old چون بعضی گاردها متنِ old را دست‌نخورده نگه
-        # می‌دارند (فقط چیزی قبلش اضافه می‌کنند) و بدونِ این چک، اجرای دوباره
-        # همان گارد را چندبار اضافه می‌کرد.
-        print(f"  - [{label}] از قبل اعمال شده، رد شد.")
+        # Check before counting old, because some guards keep the old text
+        # untouched (only inserting something around it); without this check a
+        # second run would insert the same guard again.
+        print(f"  - [{label}] already applied, skipped.")
         return
     count = text.count(old)
     if count == 0:
-        msg = (f"[{label}] متن اصلی پیدا نشد در {rel}\n"
-               f"        احتمالاً نسخه‌ی سورس با commit ثبت‌شده فرق دارد.")
+        msg = (f"[{label}] original text not found in {rel}\n"
+               f"        the source probably differs from the pinned commit.")
         if optional:
-            print(f"  ! هشدار (warning): {msg}\n"
-                  f"        این گارد را در صورت کرش، دستی اعمال کن.")
+            print(f"  ! WARNING: {msg}\n"
+                  f"        apply this guard manually if a crash happens.")
             return
         sys.exit(f"[ERROR] {msg}")
     if count > 1:
         if optional:
-            print(f"  ! هشدار (warning): [{label}] متن اصلی {count} بار پیدا شد در {rel}؛ رد شد.")
+            print(f"  ! WARNING: [{label}] original text found {count} times in {rel}; skipped.")
             return
-        sys.exit(f"[ERROR] [{label}] متن اصلی {count} بار پیدا شد (انتظار ۱ بار) در {rel}")
+        sys.exit(f"[ERROR] [{label}] original text found {count} times (expected 1) in {rel}")
     text = text.replace(old, new, 1)
     with open(p, "w", encoding="utf-8") as f:
         f.write(text)
-    print(f"  ✔ [{label}] اعمال شد در {rel}")
+    print(f"  OK [{label}] applied in {rel}")
 
 
 def replace_all(rel, old, new, label):
-    """جایگزینی همه‌ی رخدادهای یک الگوی تکراری (مثل fix نیتیوِ jniEnv در ۳۵ جا).
-    idempotent: اگر رخدادی از old نماند، یعنی قبلاً اعمال شده."""
+    """Replace every occurrence of a repeated pattern (e.g. the native jniEnv
+    fix in 35 places). Idempotent: if no occurrence of old remains, it's done."""
     p = _path(rel)
     with open(p, "r", encoding="utf-8") as f:
         text = f.read()
     count = text.count(old)
     if count == 0:
-        print(f"  - [{label}] از قبل اعمال شده، رد شد.")
+        print(f"  - [{label}] already applied, skipped.")
         return
     text = text.replace(old, new)
     with open(p, "w", encoding="utf-8") as f:
         f.write(text)
-    print(f"  ✔ [{label}] اعمال شد ({count} مورد) در {rel}")
+    print(f"  OK [{label}] applied ({count} places) in {rel}")
 
 
 def main():
     cfg = load_config()
-    print("=== اعمال تغییرات اختصاصی روی سورس تلگرام ===\n")
+    print("=== Applying custom modifications to the Telegram source ===\n")
 
     # ------------------------------------------------------------------
-    # ۱) حذف محدودیت تعداد اکانت (لاگین نامحدود)
-    #    دو ثابت در UserConfig.java را بالا می‌بریم. چون سقف رایگان و سقف کل
-    #    برابر می‌شوند، گیت پریمیوم هرگز فعال نمی‌شود و همه‌ی اسلات‌ها آزادند.
+    # 1) Remove the account count limit (unlimited login)
+    #    Raise two constants in UserConfig.java. With the free cap and hard
+    #    cap equal, the premium gate never triggers and all slots are free.
     # ------------------------------------------------------------------
     limit = int(cfg.get("account_limit", 100))
     uc = "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java"
-    print("۱) محدودیت تعداد اکانت → نامحدود (account_limit = %d)" % limit)
+    print("1) Account count limit -> unlimited (account_limit = %d)" % limit)
     replace_once(uc,
                  "public final static int MAX_ACCOUNT_DEFAULT_COUNT = 3;",
                  "public final static int MAX_ACCOUNT_DEFAULT_COUNT = %d;" % limit,
@@ -109,20 +104,21 @@ def main():
                  "accounts: hard limit")
 
     # ------------------------------------------------------------------
-    # ۱.۵) راه‌اندازی تنبل اکانت‌ها (lazy init) — جلوگیری از کرش هنگام باز شدن
-    #    وقتی MAX_ACCOUNT_COUNT بالا باشد، ApplicationLoader هنگام شروع همه‌ی
-    #    اسلات‌ها را هم‌زمان روی تردهای جدا می‌سازد. این باعث خطای JNI بین تردها
-    #    و IntentReceiverLeaked در DownloadController.<init> و در نهایت SIGABRT
-    #    می‌شود. این گاردها اسلات‌های غیرفعال را در شروع رد می‌کنند تا فقط
-    #    اکانت‌های واقعاً لاگین‌شده ساخته شوند (مثل نسخه‌های قدیمی NekoGram).
+    # 1.5) Lazy account init -- avoid the startup crash
+    #    With a high MAX_ACCOUNT_COUNT, ApplicationLoader builds every slot at
+    #    startup on separate threads. That causes cross-thread JNI errors and
+    #    IntentReceiverLeaked in DownloadController.<init> and finally SIGABRT.
+    #    These guards skip inactive slots at startup so only really logged-in
+    #    accounts are built (like old NekoGram versions).
     # ------------------------------------------------------------------
     al = "TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java"
     guard = "if (a != 0 && !UserConfig.getInstance(a).isClientActivated()) continue;"
-    print("۱.۵) راه‌اندازی تنبل اکانت‌ها (lazy init) برای جلوگیری از کرش شروع")
+    print("1.5) Lazy account init to prevent the startup crash")
 
-    # حلقه‌ی اصلی postInitApplication: گارد باید بعد از loadConfig باشد، نه قبلش
-    # (isClientActivated() فقط بعد از خودِ loadConfig معتبر می‌شود؛ اگر گارد قبل
-    #  از loadConfig باشد، اکانت‌های ۲+ بعد از هر ری‌استارت برای همیشه رد می‌شوند)
+    # Main postInitApplication loop: the guard must come AFTER loadConfig, not
+    # before (isClientActivated() is only valid once loadConfig() has run; if
+    # the guard is before loadConfig, accounts #2+ get skipped forever after
+    # every restart).
     replace_once(al,
                  "            UserConfig.getInstance(a).loadConfig();\n"
                  "            MessagesController.getInstance(a);",
@@ -131,7 +127,7 @@ def main():
                  "            MessagesController.getInstance(a);",
                  "lazy-init: main loop", optional=True)
 
-    # حلقه‌ی ContactsController/DownloadController (محل دقیق کرش این لاگ)
+    # ContactsController/DownloadController loop (exact crash site in the log)
     replace_once(al,
                  "            ContactsController.getInstance(a).checkAppAccount();\n"
                  "            DownloadController.getInstance(a);",
@@ -140,7 +136,7 @@ def main():
                  "            DownloadController.getInstance(a);",
                  "lazy-init: contacts/download loop", optional=True)
 
-    # حلقه‌ی گیرنده‌ی تغییر شبکه (network receiver)
+    # Network-change receiver loop
     replace_once(al,
                  "                    for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
                  "                        ConnectionsManager.getInstance(a).checkConnection();",
@@ -150,14 +146,13 @@ def main():
                  "lazy-init: network receiver loop", optional=True)
 
     # ------------------------------------------------------------------
-    # ۱.۶) خاموش‌کردنِ CheckJNI در بیلدِ دیباگ
-    #    بیلدِ دیباگِ اندروید به‌صورت پیش‌فرض CheckJNI را روشن می‌کند که خطاهای
-    #    نهفته‌ی JNI (بی‌ضرر در حالت عادی) را به SIGABRT تبدیل می‌کند. این خصوصاً
-    #    موقع افزودن اکانت‌های بیشتر از ۴ تا (که نیاز به ترد/JNI بیشتر دارد) کرش
-    #    می‌کند.
+    # 1.6) Disable CheckJNI in the debug build
+    #    Android's debug build turns on CheckJNI by default, which converts
+    #    latent (normally harmless) JNI errors into SIGABRT. It crashes
+    #    especially when adding more than 4 accounts (more threads/JNI).
     # ------------------------------------------------------------------
     bg = "TMessagesProj/build.gradle"
-    print("۱.۶) خاموش‌کردنِ CheckJNI در بیلدِ دیباگ")
+    print("1.6) Disable CheckJNI in the debug build")
     replace_once(bg,
                  "        debug {\n"
                  "            jniDebuggable true",
@@ -167,15 +162,16 @@ def main():
                  "build: disable CheckJNI on debug")
 
     # ------------------------------------------------------------------
-    # ۱.۷) سقفِ نیتیوِ ۵ اکانت → نامحدود
-    #    کدِ C++ (tgnet) جدا از جاوا یک سقفِ سختِ ۵ اکانت دارد: هم #define و هم
-    #    یک switch در getInstance که هر اندیسِ ≥۵ را به اکانتِ ۴ می‌فرستد (باعثِ
-    #    قاطی‌شدنِ اکانت‌ها می‌شود). این‌جا #define را برابرِ همان سقفِ جاوا می‌کنیم
-    #    و getInstance را به یک map پویا و thread-safe تبدیل می‌کنیم.
+    # 1.7) Native 5-account cap -> unlimited
+    #    The C++ (tgnet) code has its own hard cap of 5 accounts, separate
+    #    from Java: both a #define and a switch in getInstance that routes any
+    #    index >=5 to account 4 (mixing accounts together). Here we set the
+    #    #define equal to the Java cap and turn getInstance into a dynamic,
+    #    thread-safe map.
     # ------------------------------------------------------------------
     defines_h = "TMessagesProj/jni/tgnet/Defines.h"
     cm_cpp = "TMessagesProj/jni/tgnet/ConnectionsManager.cpp"
-    print("۱.۷) سقفِ نیتیوِ اکانت → نامحدود (native account_limit = %d)" % limit)
+    print("1.7) Native account cap -> unlimited (native account_limit = %d)" % limit)
     replace_once(defines_h,
                  "#define MAX_ACCOUNT_COUNT 5",
                  "#define MAX_ACCOUNT_COUNT %d" % limit,
@@ -219,14 +215,14 @@ def main():
                  "native: getInstance dynamic map")
 
     # ------------------------------------------------------------------
-    # ۱.۸) رفعِ کرشِ JNIEnv بین‌تردی
-    #    TgNetWrapper.cpp کالبک‌های شبکه را از تردهای مختلفِ tgnet صدا می‌زند ولی
-    #    از یک jniEnv[instanceNum] کش‌شده (متعلق به تردِ دیگر) استفاده می‌کرد؛
-    #    این باعثِ «JNI DETECTED ERROR: using JNIEnv* from thread X» می‌شود.
-    #    راه‌حل: هر بار JNIEnv را برای تردِ جاری از JavaVM بگیریم/attach کنیم.
+    # 1.8) Fix cross-thread JNIEnv crash
+    #    TgNetWrapper.cpp calls network callbacks from various tgnet threads
+    #    but used a cached jniEnv[instanceNum] (belonging to another thread);
+    #    this causes "JNI DETECTED ERROR: using JNIEnv* from thread X".
+    #    Fix: fetch/attach the JNIEnv for the current thread each time.
     # ------------------------------------------------------------------
     tgw = "TMessagesProj/jni/TgNetWrapper.cpp"
-    print("۱.۸) رفعِ کرشِ JNIEnv بین‌تردی در TgNetWrapper.cpp")
+    print("1.8) Fix cross-thread JNIEnv crash in TgNetWrapper.cpp")
     replace_once(tgw,
                  "JavaVM *java;",
                  "JavaVM *java;\n\n"
@@ -244,12 +240,12 @@ def main():
                 "native: jniEnv[instanceNum] -> tgCurrentEnv()")
 
     # ------------------------------------------------------------------
-    # ۱.۹) رفعِ کرشِ null-deref در processRequestQueue
-    #    وقتی auth key موقتاً بینِ handshakeِ اکانت‌های تازه null می‌شود،
-    #    getConnectionByType می‌تواند nullptr برگرداند؛ کدِ اصلی بدونِ چک به
-    #    connection->getConnectionToken() دسترسی می‌داد → SIGSEGV.
+    # 1.9) Fix connection null-deref in processRequestQueue
+    #    When an auth key is briefly null during a new account's handshake,
+    #    getConnectionByType can return nullptr; the original code accessed
+    #    connection->getConnectionToken() without a check -> SIGSEGV.
     # ------------------------------------------------------------------
-    print("۱.۹) رفعِ کرشِ null-deref کانکشن در processRequestQueue")
+    print("1.9) Fix connection null-deref in processRequestQueue")
     replace_once(cm_cpp,
                  "        Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);\n"
                  "        int32_t maxTimeout = request->connectionType & ConnectionTypeGeneric ? 8 : 30;",
@@ -274,14 +270,14 @@ def main():
                  "native: null-check connection #2")
 
     # ------------------------------------------------------------------
-    # ۱.۱۰) گاردِ یک نقطه‌ی شناخته‌شده‌ی «طوفانِ حساب» (LocationController)
-    #    این حلقه بدونِ چک، getInstance را برای هر ۱۰۰ اسلات صدا می‌زند حتی
-    #    اگر اکانت خالی باشد. اگر بعداً کرشِ مشابه (طوفانِ storage) با backtrace
-    #    در فایلِ دیگری دیده شد، همین الگو (چکِ isClientActivated قبل از
-    #    getInstance) را آن‌جا هم اضافه کن.
+    # 1.10) Guard one known "account storm" spot (LocationController)
+    #    This loop calls getInstance for all 100 slots without a check, even
+    #    for empty accounts. If a similar crash (storage storm) is later seen
+    #    with a backtrace in another file, add the same pattern (isClientActivated
+    #    check before getInstance) there too.
     # ------------------------------------------------------------------
     lc = "TMessagesProj/src/main/java/org/telegram/messenger/LocationController.java"
-    print("۱.۱۰) گاردِ getLocationsCount در برابرِ ساختِ بی‌موردِ ۱۰۰ اسلات")
+    print("1.10) Guard getLocationsCount against building 100 slots needlessly")
     replace_once(lc,
                  "        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
                  "            count += LocationController.getInstance(a).sharingLocationsUI.size();\n"
@@ -295,12 +291,13 @@ def main():
                  "guard: LocationController.getLocationsCount", optional=True)
 
     # ------------------------------------------------------------------
-    # ۲) باز کردن ترجمه‌ی کل چت/گروه برای همه (بدون نیاز به پریمیوم)
-    #    نوار «ترجمه» در بالای چت که پشت پریمیوم بود را همگانی می‌کنیم.
+    # 2) Open whole chat/group translation for everyone (no premium)
+    #    The "Translate" bar at the top of a chat that was behind premium is
+    #    made available to everyone.
     # ------------------------------------------------------------------
     tc = "TMessagesProj/src/main/java/org/telegram/messenger/TranslateController.java"
     if cfg.get("enable_chat_translate_for_all", True):
-        print("۲) ترجمه‌ی کل چت/گروه → برای همه باز شد")
+        print("2) Whole chat/group translation -> open to everyone")
         replace_once(tc,
                      "    public boolean isFeatureAvailable() {\n"
                      "        return isChatTranslateEnabled() && UserConfig.getInstance(currentAccount).isPremium();\n"
@@ -319,26 +316,27 @@ def main():
                      "translate: per-dialog feature for all")
 
     # ------------------------------------------------------------------
-    # ۳) روشن بودن پیش‌فرض دکمه‌ی ترجمه‌ی تک‌پیام
+    # 3) Per-message translate button on by default
     # ------------------------------------------------------------------
     if cfg.get("translate_button_default_on", True):
-        print("۳) دکمه‌ی ترجمه‌ی تک‌پیام → به‌صورت پیش‌فرض روشن")
+        print("3) Per-message translate button -> on by default")
         replace_once(tc,
                      'contextTranslateEnabled = messagesController.getMainSettings().getBoolean("translate_button", MessagesController.getGlobalMainSettings().getBoolean("translate_button", false));',
                      'contextTranslateEnabled = messagesController.getMainSettings().getBoolean("translate_button", MessagesController.getGlobalMainSettings().getBoolean("translate_button", true));',
                      "translate: per-message default on")
 
     # ------------------------------------------------------------------
-    # ۴) موتورِ ترجمه به سبکِ نکوگرام (Google Translate به‌جای سرورِ تلگرام)
-    #    کدِ رسمی از قبل یک مسیرِ جایگزینِ کامل دارد (TranslateAlert2.alternativeTranslate
-    #    → endpoint وبِ Google Translate با client=gtx — همان موتوری که نکوگرام
-    #    استفاده می‌کند، با تکه‌تکه‌کردنِ متنِ بلند و چرخشِ User-Agent). انتخابِ مسیر
-    #    با دو فلگِ کانفیگِ سروری است؛ ما هر دو را همیشه "alternative" می‌کنیم:
-    #    هم مقدارِ اولیه هنگامِ لود، هم جایی که appConfigِ سرور می‌خواهد بازنویسی‌شان کند.
+    # 4) Nekogram-style translation engine (Google Translate instead of the
+    #    Telegram server). The official code already has a complete alternative
+    #    path (TranslateAlert2.alternativeTranslate -> Google Translate web
+    #    endpoint with client=gtx -- the same engine Nekogram uses, with long
+    #    text chunking and User-Agent rotation). The path is chosen by two
+    #    server config flags; we lock both to "alternative": both at load time
+    #    and where the server's appConfig would otherwise overwrite them.
     # ------------------------------------------------------------------
     mc = "TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java"
     if cfg.get("nekogram_style_translation", True):
-        print("۴) موتورِ ترجمه → Google Translate (سبکِ نکوگرام)")
+        print("4) Translation engine -> Google Translate (Nekogram-style)")
         replace_once(mc,
                      'translationsManualEnabled = mainPreferences.getString("translationsManualEnabled", "enabled");',
                      'translationsManualEnabled = "alternative"; // [mod] Nekogram-style: Google translate engine',
@@ -347,9 +345,10 @@ def main():
                      'translationsAutoEnabled = mainPreferences.getString("translationsAutoEnabled", "enabled");',
                      'translationsAutoEnabled = "alternative"; // [mod] Nekogram-style: Google translate engine',
                      "translate-engine: auto load")
-        # به‌جای دستکاریِ مقدار، خودِ شرطِ به‌روزرسانی را می‌بندیم تا هر بار
-        # appConfig آمد، بیهوده changed=true و بازنویسیِ تنظیمات رخ ندهد.
-        # (کامنتِ دو پچ عمداً متفاوت است تا چکِ idempotency قاطی‌شان نکند.)
+        # Instead of touching the value, we close the update condition so that
+        # each time appConfig arrives it doesn't needlessly set changed=true and
+        # overwrite the setting. (The two comments differ on purpose so the
+        # idempotency check doesn't confuse them.)
         replace_once(mc,
                      "                        if (!TextUtils.equals(translationsManualEnabled, str.value)) {",
                      "                        if (false) { // [mod] keep Nekogram-style translation engine (manual)",
@@ -360,15 +359,15 @@ def main():
                      "translate-engine: auto appconfig")
 
     # ------------------------------------------------------------------
-    # ۵) تگِ شماره برای اکانت‌ها (#1 تا #100)
-    #    شماره = شماره‌ی اسلاتِ اکانت + ۱. چون اسلات‌ها به ترتیبِ لاگین پر می‌شوند،
-    #    این همان ترتیبِ لاگین است و بعد از ری‌استارت هم ثابت می‌ماند.
-    #    از «#» به‌جای نقطه استفاده شده تا در متنِ راست‌به‌چپ (فارسی) به‌هم نریزد.
+    # 5) Number tag for accounts (#1 .. #100)
+    #    Number = account slot number + 1. Since slots fill in login order,
+    #    this is the login order and stays stable across restarts. We use "#"
+    #    instead of a dot so it doesn't break in right-to-left (Persian) text.
     # ------------------------------------------------------------------
     mta = "TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java"
     asc = "TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java"
     if cfg.get("account_number_tags", True):
-        print("۵) تگِ شماره برای اکانت‌ها")
+        print("5) Number tag for accounts")
         replace_once(mta,
                      "textView.setText(UserObject.getUserName(user));",
                      "textView.setText(\"#\" + (account + 1) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
@@ -378,8 +377,8 @@ def main():
                      "textView.setText(\"#\" + (accountNumber + 1) + \" \" + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag",
                      "account-tag: account select cell")
 
-    print("\n=== همه‌ی تغییرات با موفقیت اعمال شد ✔ ===")
-    print("حالا می‌توانی پروژه‌ی پوشه‌ی Telegram را در Android Studio باز کرده و Build بزنی.")
+    print("\n=== All modifications applied successfully ===")
+    print("Now open the Telegram folder in Android Studio and Build.")
 
 
 if __name__ == "__main__":

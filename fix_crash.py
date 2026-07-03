@@ -3,23 +3,19 @@
 """
 fix_crash.py
 ------------
-دکمه‌ی «فشار بده تمام» برای رفع کرش باز شدن برنامه.
+One-click fixer for the app startup crash.
 
-این اسکریپت خودش فایل ApplicationLoader.java را پیدا می‌کند و سه گارد
-«راه‌اندازی تنبل اکانت» را اعمال می‌کند تا دیگر همه‌ی اسلات‌های اکانت
-هم‌زمان ساخته نشوند (علت کرش JNI / SIGABRT).
+This script locates ApplicationLoader.java itself and applies the three
+"lazy account init" guards so that not all account slots are built at once
+(the cause of the JNI / SIGABRT crash).
 
-ویژگی‌ها:
-  - حساس به فاصله‌گذاری نیست (با regex و حفظ تورفتگی هر خط).
-  - idempotent است: اگر دوباره اجرا شود، تغییر تکراری اعمال نمی‌کند.
-  - پیش از تغییر، یک نسخه‌ی پشتیبان (.bak) می‌سازد.
-
-One-click fixer: locates ApplicationLoader.java and inserts the three
-lazy-init account guards (whitespace-tolerant, idempotent, makes a .bak).
+Features:
+  - whitespace-tolerant (uses per-line indentation).
+  - idempotent: re-running does not apply a duplicate change.
+  - makes a backup (.bak) before editing.
 """
 
 import os
-import re
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +24,7 @@ GUARD_MARK = "isClientActivated()) continue;"
 
 
 def find_app_loader():
-    """پیدا کردن ApplicationLoader.java در مسیرهای محتمل یا با جستجو."""
+    """Find ApplicationLoader.java in likely paths or by walking the tree."""
     rel = os.path.join("TMessagesProj", "src", "main", "java", "org",
                        "telegram", "messenger", "ApplicationLoader.java")
     candidates = [
@@ -38,7 +34,7 @@ def find_app_loader():
     for c in candidates:
         if os.path.isfile(c):
             return c
-    # جستجوی کلی از ریشه
+    # general walk from the root
     for base, _dirs, files in os.walk(ROOT):
         if "ApplicationLoader.java" in files:
             norm = base.replace("\\", "/")
@@ -48,34 +44,34 @@ def find_app_loader():
 
 
 def apply_guard(lines, anchor, where, label):
-    """درج گارد قبل/بعد از خطی که شامل anchor است.
-    where = 'before' یا 'after'. خروجی: (تغییریافته؟, پیام)"""
+    """Insert the guard before/after the line containing anchor.
+    where = 'before' or 'after'. Returns (changed?, message)."""
     for i, line in enumerate(lines):
         if anchor in line:
             indent = line[:len(line) - len(line.lstrip())]
             guard_line = indent + GUARD + "\n"
             if where == "before":
                 if i > 0 and GUARD_MARK in lines[i - 1]:
-                    return False, f"[{label}] از قبل اعمال شده — رد شد"
+                    return False, f"[{label}] already applied -- skipped"
                 lines.insert(i, guard_line)
-                return True, f"[{label}] ✔ اعمال شد"
+                return True, f"[{label}] OK applied"
             else:  # after
                 if i + 1 < len(lines) and GUARD_MARK in lines[i + 1]:
-                    return False, f"[{label}] از قبل اعمال شده — رد شد"
+                    return False, f"[{label}] already applied -- skipped"
                 lines.insert(i + 1, guard_line)
-                return True, f"[{label}] ✔ اعمال شد"
-    return False, f"[{label}] ! لنگر (anchor) پیدا نشد"
+                return True, f"[{label}] OK applied"
+    return False, f"[{label}] ! anchor not found"
 
 
 def main():
-    print("=== رفع کرش باز شدن (lazy-init اکانت‌ها) ===\n")
+    print("=== Startup crash fix (lazy account init) ===\n")
     path = find_app_loader()
     if not path:
-        print("[خطا] فایل ApplicationLoader.java پیدا نشد.")
-        print("      این اسکریپت را در همان پوشه‌ای که setup.bat هست بگذار و اجرا کن.")
+        print("[ERROR] ApplicationLoader.java not found.")
+        print("        Put this script in the same folder as setup.bat and run it.")
         sys.exit(1)
 
-    print("فایل پیدا شد:")
+    print("File found:")
     print("  " + path + "\n")
 
     with open(path, "r", encoding="utf-8") as f:
@@ -83,42 +79,42 @@ def main():
 
     original = list(lines)
 
-    # ۱) حلقه‌ی ContactsController/DownloadController (محل دقیق کرش)
+    # 1) ContactsController/DownloadController loop (exact crash site)
     changed1, msg1 = apply_guard(
         lines, "ContactsController.getInstance(a).checkAppAccount();",
-        "before", "حلقه contacts/download")
+        "before", "contacts/download loop")
     print("  " + msg1)
 
-    # ۲) حلقه‌ی اصلی postInitApplication (بعد از loadConfig)
+    # 2) Main postInitApplication loop (after loadConfig)
     changed2, msg2 = apply_guard(
         lines, "UserConfig.getInstance(a).loadConfig();",
-        "after", "حلقه اصلی")
+        "after", "main loop")
     print("  " + msg2)
 
-    # ۳) حلقه‌ی گیرنده‌ی تغییر شبکه
+    # 3) Network-change receiver loop
     changed3, msg3 = apply_guard(
         lines, "ConnectionsManager.getInstance(a).checkConnection();",
-        "before", "حلقه شبکه")
+        "before", "network loop")
     print("  " + msg3)
 
     if not (changed1 or changed2 or changed3):
-        print("\nهیچ تغییر جدیدی لازم نبود (همه از قبل اعمال شده بود).")
-        print("اگر باز کرش می‌کند، پیام را برای من بفرست.")
+        print("\nNo new change was needed (everything already applied).")
+        print("If it still crashes, send me the log.")
         return
 
-    # پشتیبان و ذخیره
+    # backup and save
     bak = path + ".bak"
     if not os.path.isfile(bak):
         with open(bak, "w", encoding="utf-8") as f:
             f.writelines(original)
-        print("\nنسخه‌ی پشتیبان ساخته شد: ApplicationLoader.java.bak")
+        print("\nBackup created: ApplicationLoader.java.bak")
 
     with open(path, "w", encoding="utf-8") as f:
         f.writelines(lines)
 
-    print("\n=== تمام ✔ ===")
-    print("حالا دوباره در Android Studio پروژه را Build کن و روی گوشی نصب کن.")
-    print("(دستور بیلد: gradle :TMessagesProj_App:assembleAfatDebug )")
+    print("\n=== Done ===")
+    print("Now Build the project in Android Studio again and install on the phone.")
+    print("(build task: gradle :TMessagesProj_App:assembleAfatDebug )")
 
 
 if __name__ == "__main__":
