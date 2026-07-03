@@ -45,11 +45,14 @@ def replace_once(rel, old, new, label, optional=False):
     p = _path(rel)
     with open(p, "r", encoding="utf-8") as f:
         text = f.read()
+    if new in text:
+        # چک قبل از شمارشِ old چون بعضی گاردها متنِ old را دست‌نخورده نگه
+        # می‌دارند (فقط چیزی قبلش اضافه می‌کنند) و بدونِ این چک، اجرای دوباره
+        # همان گارد را چندبار اضافه می‌کرد.
+        print(f"  - [{label}] از قبل اعمال شده، رد شد.")
+        return
     count = text.count(old)
     if count == 0:
-        if new in text:
-            print(f"  - [{label}] از قبل اعمال شده، رد شد.")
-            return
         msg = (f"[{label}] متن اصلی پیدا نشد در {rel}\n"
                f"        احتمالاً نسخه‌ی سورس با commit ثبت‌شده فرق دارد.")
         if optional:
@@ -66,6 +69,22 @@ def replace_once(rel, old, new, label, optional=False):
     with open(p, "w", encoding="utf-8") as f:
         f.write(text)
     print(f"  ✔ [{label}] اعمال شد در {rel}")
+
+
+def replace_all(rel, old, new, label):
+    """جایگزینی همه‌ی رخدادهای یک الگوی تکراری (مثل fix نیتیوِ jniEnv در ۳۵ جا).
+    idempotent: اگر رخدادی از old نماند، یعنی قبلاً اعمال شده."""
+    p = _path(rel)
+    with open(p, "r", encoding="utf-8") as f:
+        text = f.read()
+    count = text.count(old)
+    if count == 0:
+        print(f"  - [{label}] از قبل اعمال شده، رد شد.")
+        return
+    text = text.replace(old, new)
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(text)
+    print(f"  ✔ [{label}] اعمال شد ({count} مورد) در {rel}")
 
 
 def main():
@@ -101,11 +120,15 @@ def main():
     guard = "if (a != 0 && !UserConfig.getInstance(a).isClientActivated()) continue;"
     print("۱.۵) راه‌اندازی تنبل اکانت‌ها (lazy init) برای جلوگیری از کرش شروع")
 
-    # حلقه‌ی اصلی postInitApplication: قبل از loadConfig/MessagesController/...
+    # حلقه‌ی اصلی postInitApplication: گارد باید بعد از loadConfig باشد، نه قبلش
+    # (isClientActivated() فقط بعد از خودِ loadConfig معتبر می‌شود؛ اگر گارد قبل
+    #  از loadConfig باشد، اکانت‌های ۲+ بعد از هر ری‌استارت برای همیشه رد می‌شوند)
     replace_once(al,
-                 "            UserConfig.getInstance(a).loadConfig();",
+                 "            UserConfig.getInstance(a).loadConfig();\n"
+                 "            MessagesController.getInstance(a);",
+                 "            UserConfig.getInstance(a).loadConfig();\n"
                  "            " + guard + "\n"
-                 "            UserConfig.getInstance(a).loadConfig();",
+                 "            MessagesController.getInstance(a);",
                  "lazy-init: main loop", optional=True)
 
     # حلقه‌ی ContactsController/DownloadController (محل دقیق کرش این لاگ)
@@ -119,10 +142,157 @@ def main():
 
     # حلقه‌ی گیرنده‌ی تغییر شبکه (network receiver)
     replace_once(al,
-                 "                ConnectionsManager.getInstance(a).checkConnection();",
-                 "                " + guard + "\n"
-                 "                ConnectionsManager.getInstance(a).checkConnection();",
+                 "                    for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
+                 "                        ConnectionsManager.getInstance(a).checkConnection();",
+                 "                    for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
+                 "                        " + guard + "\n"
+                 "                        ConnectionsManager.getInstance(a).checkConnection();",
                  "lazy-init: network receiver loop", optional=True)
+
+    # ------------------------------------------------------------------
+    # ۱.۶) خاموش‌کردنِ CheckJNI در بیلدِ دیباگ
+    #    بیلدِ دیباگِ اندروید به‌صورت پیش‌فرض CheckJNI را روشن می‌کند که خطاهای
+    #    نهفته‌ی JNI (بی‌ضرر در حالت عادی) را به SIGABRT تبدیل می‌کند. این خصوصاً
+    #    موقع افزودن اکانت‌های بیشتر از ۴ تا (که نیاز به ترد/JNI بیشتر دارد) کرش
+    #    می‌کند.
+    # ------------------------------------------------------------------
+    bg = "TMessagesProj/build.gradle"
+    print("۱.۶) خاموش‌کردنِ CheckJNI در بیلدِ دیباگ")
+    replace_once(bg,
+                 "        debug {\n"
+                 "            jniDebuggable true",
+                 "        debug {\n"
+                 "            jniDebuggable false\n"
+                 "            debuggable false",
+                 "build: disable CheckJNI on debug")
+
+    # ------------------------------------------------------------------
+    # ۱.۷) سقفِ نیتیوِ ۵ اکانت → نامحدود
+    #    کدِ C++ (tgnet) جدا از جاوا یک سقفِ سختِ ۵ اکانت دارد: هم #define و هم
+    #    یک switch در getInstance که هر اندیسِ ≥۵ را به اکانتِ ۴ می‌فرستد (باعثِ
+    #    قاطی‌شدنِ اکانت‌ها می‌شود). این‌جا #define را برابرِ همان سقفِ جاوا می‌کنیم
+    #    و getInstance را به یک map پویا و thread-safe تبدیل می‌کنیم.
+    # ------------------------------------------------------------------
+    defines_h = "TMessagesProj/jni/tgnet/Defines.h"
+    cm_cpp = "TMessagesProj/jni/tgnet/ConnectionsManager.cpp"
+    print("۱.۷) سقفِ نیتیوِ اکانت → نامحدود (native account_limit = %d)" % limit)
+    replace_once(defines_h,
+                 "#define MAX_ACCOUNT_COUNT 5",
+                 "#define MAX_ACCOUNT_COUNT %d" % limit,
+                 "native: account count define")
+    replace_once(cm_cpp,
+                 "ConnectionsManager& ConnectionsManager::getInstance(int32_t instanceNum) {\n"
+                 "    switch (instanceNum) {\n"
+                 "        case 0:\n"
+                 "            static ConnectionsManager instance0(0);\n"
+                 "            return instance0;\n"
+                 "        case 1:\n"
+                 "            static ConnectionsManager instance1(1);\n"
+                 "            return instance1;\n"
+                 "        case 2:\n"
+                 "            static ConnectionsManager instance2(2);\n"
+                 "            return instance2;\n"
+                 "        case 3:\n"
+                 "            static ConnectionsManager instance3(3);\n"
+                 "            return instance3;\n"
+                 "        case 4:\n"
+                 "        default:\n"
+                 "            static ConnectionsManager instance4(4);\n"
+                 "            return instance4;\n"
+                 "    }\n"
+                 "}",
+                 "ConnectionsManager& ConnectionsManager::getInstance(int32_t instanceNum) {\n"
+                 "    static std::map<int32_t, ConnectionsManager *> instances;\n"
+                 "    static pthread_mutex_t instancesMutex = PTHREAD_MUTEX_INITIALIZER;\n"
+                 "    if (instanceNum < 0) {\n"
+                 "        instanceNum = 0;\n"
+                 "    }\n"
+                 "    pthread_mutex_lock(&instancesMutex);\n"
+                 "    ConnectionsManager *result = instances[instanceNum];\n"
+                 "    if (result == nullptr) {\n"
+                 "        result = new ConnectionsManager(instanceNum);\n"
+                 "        instances[instanceNum] = result;\n"
+                 "    }\n"
+                 "    pthread_mutex_unlock(&instancesMutex);\n"
+                 "    return *result;\n"
+                 "}",
+                 "native: getInstance dynamic map")
+
+    # ------------------------------------------------------------------
+    # ۱.۸) رفعِ کرشِ JNIEnv بین‌تردی
+    #    TgNetWrapper.cpp کالبک‌های شبکه را از تردهای مختلفِ tgnet صدا می‌زند ولی
+    #    از یک jniEnv[instanceNum] کش‌شده (متعلق به تردِ دیگر) استفاده می‌کرد؛
+    #    این باعثِ «JNI DETECTED ERROR: using JNIEnv* from thread X» می‌شود.
+    #    راه‌حل: هر بار JNIEnv را برای تردِ جاری از JavaVM بگیریم/attach کنیم.
+    # ------------------------------------------------------------------
+    tgw = "TMessagesProj/jni/TgNetWrapper.cpp"
+    print("۱.۸) رفعِ کرشِ JNIEnv بین‌تردی در TgNetWrapper.cpp")
+    replace_once(tgw,
+                 "JavaVM *java;",
+                 "JavaVM *java;\n\n"
+                 "static inline JNIEnv *tgCurrentEnv() {\n"
+                 "    JNIEnv *env = nullptr;\n"
+                 "    if (java->GetEnv((void **) &env, JNI_VERSION_1_6) != JNI_OK) {\n"
+                 "        java->AttachCurrentThread(&env, nullptr);\n"
+                 "    }\n"
+                 "    return env;\n"
+                 "}",
+                 "native: tgCurrentEnv helper")
+    replace_all(tgw,
+                "jniEnv[instanceNum]->",
+                "tgCurrentEnv()->",
+                "native: jniEnv[instanceNum] -> tgCurrentEnv()")
+
+    # ------------------------------------------------------------------
+    # ۱.۹) رفعِ کرشِ null-deref در processRequestQueue
+    #    وقتی auth key موقتاً بینِ handshakeِ اکانت‌های تازه null می‌شود،
+    #    getConnectionByType می‌تواند nullptr برگرداند؛ کدِ اصلی بدونِ چک به
+    #    connection->getConnectionToken() دسترسی می‌داد → SIGSEGV.
+    # ------------------------------------------------------------------
+    print("۱.۹) رفعِ کرشِ null-deref کانکشن در processRequestQueue")
+    replace_once(cm_cpp,
+                 "        Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);\n"
+                 "        int32_t maxTimeout = request->connectionType & ConnectionTypeGeneric ? 8 : 30;",
+                 "        Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);\n"
+                 "        if (connection == nullptr) {\n"
+                 "            iter++;\n"
+                 "            continue;\n"
+                 "        }\n"
+                 "        int32_t maxTimeout = request->connectionType & ConnectionTypeGeneric ? 8 : 30;",
+                 "native: null-check connection #1")
+    replace_once(cm_cpp,
+                 "        Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);\n"
+                 "\n"
+                 "        if (request->connectionType & ConnectionTypeGeneric && connection->getConnectionToken() == 0) {",
+                 "        Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);\n"
+                 "        if (connection == nullptr) {\n"
+                 "            iter++;\n"
+                 "            continue;\n"
+                 "        }\n"
+                 "\n"
+                 "        if (request->connectionType & ConnectionTypeGeneric && connection->getConnectionToken() == 0) {",
+                 "native: null-check connection #2")
+
+    # ------------------------------------------------------------------
+    # ۱.۱۰) گاردِ یک نقطه‌ی شناخته‌شده‌ی «طوفانِ حساب» (LocationController)
+    #    این حلقه بدونِ چک، getInstance را برای هر ۱۰۰ اسلات صدا می‌زند حتی
+    #    اگر اکانت خالی باشد. اگر بعداً کرشِ مشابه (طوفانِ storage) با backtrace
+    #    در فایلِ دیگری دیده شد، همین الگو (چکِ isClientActivated قبل از
+    #    getInstance) را آن‌جا هم اضافه کن.
+    # ------------------------------------------------------------------
+    lc = "TMessagesProj/src/main/java/org/telegram/messenger/LocationController.java"
+    print("۱.۱۰) گاردِ getLocationsCount در برابرِ ساختِ بی‌موردِ ۱۰۰ اسلات")
+    replace_once(lc,
+                 "        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
+                 "            count += LocationController.getInstance(a).sharingLocationsUI.size();\n"
+                 "        }",
+                 "        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
+                 "            if (!UserConfig.getInstance(a).isClientActivated()) {\n"
+                 "                continue;\n"
+                 "            }\n"
+                 "            count += LocationController.getInstance(a).sharingLocationsUI.size();\n"
+                 "        }",
+                 "guard: LocationController.getLocationsCount", optional=True)
 
     # ------------------------------------------------------------------
     # ۲) باز کردن ترجمه‌ی کل چت/گروه برای همه (بدون نیاز به پریمیوم)
