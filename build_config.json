@@ -8,5 +8,7 @@
 
   "account_limit": 100,
   "enable_chat_translate_for_all": true,
-  "translate_button_default_on": true
+  "translate_button_default_on": true,
+  "nekogram_style_translation": true,
+  "account_number_tags": true
 }

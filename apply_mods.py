@@ -328,6 +328,56 @@ def main():
                      'contextTranslateEnabled = messagesController.getMainSettings().getBoolean("translate_button", MessagesController.getGlobalMainSettings().getBoolean("translate_button", true));',
                      "translate: per-message default on")
 
+    # ------------------------------------------------------------------
+    # ۴) موتورِ ترجمه به سبکِ نکوگرام (Google Translate به‌جای سرورِ تلگرام)
+    #    کدِ رسمی از قبل یک مسیرِ جایگزینِ کامل دارد (TranslateAlert2.alternativeTranslate
+    #    → endpoint وبِ Google Translate با client=gtx — همان موتوری که نکوگرام
+    #    استفاده می‌کند، با تکه‌تکه‌کردنِ متنِ بلند و چرخشِ User-Agent). انتخابِ مسیر
+    #    با دو فلگِ کانفیگِ سروری است؛ ما هر دو را همیشه "alternative" می‌کنیم:
+    #    هم مقدارِ اولیه هنگامِ لود، هم جایی که appConfigِ سرور می‌خواهد بازنویسی‌شان کند.
+    # ------------------------------------------------------------------
+    mc = "TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java"
+    if cfg.get("nekogram_style_translation", True):
+        print("۴) موتورِ ترجمه → Google Translate (سبکِ نکوگرام)")
+        replace_once(mc,
+                     'translationsManualEnabled = mainPreferences.getString("translationsManualEnabled", "enabled");',
+                     'translationsManualEnabled = "alternative"; // [mod] Nekogram-style: Google translate engine',
+                     "translate-engine: manual load")
+        replace_once(mc,
+                     'translationsAutoEnabled = mainPreferences.getString("translationsAutoEnabled", "enabled");',
+                     'translationsAutoEnabled = "alternative"; // [mod] Nekogram-style: Google translate engine',
+                     "translate-engine: auto load")
+        # به‌جای دستکاریِ مقدار، خودِ شرطِ به‌روزرسانی را می‌بندیم تا هر بار
+        # appConfig آمد، بیهوده changed=true و بازنویسیِ تنظیمات رخ ندهد.
+        # (کامنتِ دو پچ عمداً متفاوت است تا چکِ idempotency قاطی‌شان نکند.)
+        replace_once(mc,
+                     "                        if (!TextUtils.equals(translationsManualEnabled, str.value)) {",
+                     "                        if (false) { // [mod] keep Nekogram-style translation engine (manual)",
+                     "translate-engine: manual appconfig")
+        replace_once(mc,
+                     "                        if (!TextUtils.equals(translationsAutoEnabled, str.value)) {",
+                     "                        if (false) { // [mod] keep Nekogram-style translation engine (auto)",
+                     "translate-engine: auto appconfig")
+
+    # ------------------------------------------------------------------
+    # ۵) تگِ شماره برای اکانت‌ها (#1 تا #100)
+    #    شماره = شماره‌ی اسلاتِ اکانت + ۱. چون اسلات‌ها به ترتیبِ لاگین پر می‌شوند،
+    #    این همان ترتیبِ لاگین است و بعد از ری‌استارت هم ثابت می‌ماند.
+    #    از «#» به‌جای نقطه استفاده شده تا در متنِ راست‌به‌چپ (فارسی) به‌هم نریزد.
+    # ------------------------------------------------------------------
+    mta = "TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java"
+    asc = "TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java"
+    if cfg.get("account_number_tags", True):
+        print("۵) تگِ شماره برای اکانت‌ها")
+        replace_once(mta,
+                     "textView.setText(UserObject.getUserName(user));",
+                     "textView.setText(\"#\" + (account + 1) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
+                     "account-tag: main switcher list")
+        replace_once(asc,
+                     "textView.setText(ContactsController.formatName(user.first_name, user.last_name));",
+                     "textView.setText(\"#\" + (accountNumber + 1) + \" \" + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag",
+                     "account-tag: account select cell")
+
     print("\n=== همه‌ی تغییرات با موفقیت اعمال شد ✔ ===")
     print("حالا می‌توانی پروژه‌ی پوشه‌ی Telegram را در Android Studio باز کرده و Build بزنی.")
 
