@@ -366,16 +366,52 @@ def main():
     # ------------------------------------------------------------------
     mta = "TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java"
     asc = "TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java"
+    da = "TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java"
+    # Login-order number helper. Account slots are NOT sequential (Telegram
+    # fills "add account" from the top of the array, so slots end up 0,99,98,
+    # ...), which is why slot+1 gave 1,100,99,98. We rank by loginTime instead,
+    # matching the order the account switcher already sorts by, so it reads
+    # 1,2,3,... in login order and stays stable across restarts.
+    tag_helper = (
+        "    public static int getAccountTagNumber(int account) {\n"
+        "        if (account < 0 || account >= MAX_ACCOUNT_COUNT) {\n"
+        "            return account + 1;\n"
+        "        }\n"
+        "        long myLogin = getInstance(account).loginTime;\n"
+        "        int rank = 1;\n"
+        "        for (int a = 0; a < MAX_ACCOUNT_COUNT; a++) {\n"
+        "            if (a == account) {\n"
+        "                continue;\n"
+        "            }\n"
+        "            if (!getInstance(a).isClientActivated()) {\n"
+        "                continue;\n"
+        "            }\n"
+        "            long other = getInstance(a).loginTime;\n"
+        "            if (other < myLogin || (other == myLogin && a < account)) {\n"
+        "                rank++;\n"
+        "            }\n"
+        "        }\n"
+        "        return rank;\n"
+        "    }\n"
+    )
     if cfg.get("account_number_tags", True):
-        print("5) Number tag for accounts")
+        print("5) Number tag for accounts (login order)")
+        replace_once(uc,
+                     "    public static int getActivatedAccountsCount() {",
+                     tag_helper + "\n    public static int getActivatedAccountsCount() {",
+                     "account-tag: login-order helper")
         replace_once(mta,
                      "textView.setText(UserObject.getUserName(user));",
-                     "textView.setText(\"#\" + (account + 1) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
+                     "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
                      "account-tag: main switcher list")
         replace_once(asc,
                      "textView.setText(ContactsController.formatName(user.first_name, user.last_name));",
-                     "textView.setText(\"#\" + (accountNumber + 1) + \" \" + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag",
+                     "textView.setText(\"#\" + UserConfig.getAccountTagNumber(accountNumber) + \" \" + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag",
                      "account-tag: account select cell")
+        replace_once(da,
+                     "textView.setText(UserObject.getUserName(user));",
+                     "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
+                     "account-tag: dialogs drawer switcher")
 
     print("\n=== All modifications applied successfully ===")
     print("Now open the Telegram folder in Android Studio and Build.")
