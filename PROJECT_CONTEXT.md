@@ -267,8 +267,20 @@ public boolean isFeatureAvailable(long dialogId) {
   `tgCurrentEnv`، جابه‌جاییِ گاردِ اصلی به بعد از loadConfig، حذفِ گاردهای تکراری، و یک
   **گزارشِ تشخیصی**. بکاپ: `.bak2`.
 - `add_features.py/.bat` — موتورِ گوگل + تگِ شماره (نسخه‌ی اولِ تگ که باگِ اسلات داشت). بکاپ: `.bak3`.
-- `fix_translate_and_tags.py/.bat` — **آخرین**: حذفِ قفلِ Premium (۲ پچ) + helperِ loginTime در
+- `fix_translate_and_tags.py/.bat` — حذفِ قفلِ Premium (۲ پچ) + helperِ loginTime در
   UserConfig + اصلاحِ تگ‌های باگ‌دار به helper + افزودنِ تگ به DialogsActivity. بکاپ: `.bak4`.
+- `bubble_translate_and_tags.py/.bat` — **آخرین** (این یکی در ریپو هم هست): ۱۹ پچ در ۳ گروه:
+  (A) تگِ شماره در پروفایلِ خود (ProfileActivity)، هدرِ تنظیمات (SettingsActivity.setInfo) و
+  لیستِ اکانت‌های داخلِ تنظیمات (SettingsActivity.AccountCell.set).
+  (B) نوارِ Translate بالای **همه‌ی** چت‌ها: حذفِ شرطِ `translatableDialogs.contains` از
+  `isDialogTranslatable` (تشخیصِ زبانِ ML گوگل روی گوشیِ بدونِ سرویسِ گوگل هیچ‌وقت کامل
+  نمی‌شود — ریشه‌ی «نوار نمی‌آید» همین بود، نه فقط قفلِ Premium) + حذفِ شرطِ premium از
+  `showTranslate` و `onButtonClick` در ChatActivity + ۳ گیتِ premium در TranslateButton.
+  (C) ترجمه‌ی داخلِ حباب برای تک‌پیام: helperِ `toggleManualMessageTranslation` در
+  TranslateController (از همان pushToTranslate/موتورِ کلِ چت استفاده می‌کند) + پذیرشِ ترجمه‌ی
+  دستی در شرطِ `MessageObject.updateTranslation` + جایگزینیِ ۳ محلِ بازشدنِ TranslateAlert2 در
+  ChatActivity با toggle (با fallback به پنجره برای پیام‌های غیرقابل‌ترجمه مثل پیامِ خودِ کاربر)
+  + برچسبِ منو «Show Original» وقتی پیام دستی ترجمه شده. بکاپ: `.bak5`. فقط جاوا → بیلدِ عادی.
 
 ### الگوی امنِ replace_once (در همه‌ی اسکریپت‌ها)
 اول چک می‌کند متنِ **جدید** موجود است (→ skip، برای idempotency)، بعد شمارشِ متنِ **قدیم**؛
@@ -280,17 +292,37 @@ public boolean isFeatureAvailable(long dialogId) {
 - ✅ لاگین نامحدود + رفعِ کرش‌ها: کاربر با **۵ اکانت** تست کرد و پایدار است.
 - ✅ موتورِ ترجمه‌ی گوگل (سبکِ نکوگرام): اعمال شد.
 - ✅ دکمه‌ی ترجمه‌ی تک‌پیام پیش‌فرض روشن.
-- 🔄 **در حال تستِ کاربر (آخرین اسکریپت `fix_translate_and_tags`):**
-  - ترجمه‌ی کلِ چت/گروه + inline در حباب + به‌خاطرسپاریِ per-dialog (قفلِ Premium حذف شد).
-  - تگِ شماره‌ی درست به ترتیبِ لاگین در هر سه محل (منتظرِ تأییدِ کاربر).
+- ✅ **تگِ شماره به ترتیبِ لاگین درست شد** (تأییدِ کاربر) — ولی فقط در شیتِ لمسِ طولانیِ آواتار
+  دیده می‌شد.
+- ❌ بازخوردِ کاربر بعد از `fix_translate_and_tags`: نوارِ Translate بالای چت نیامد (ریشه:
+  وابستگی به تشخیصِ زبانِ ML گوگل که روی گوشیِ او کار نمی‌کند + گیت‌های premium در ChatActivity
+  و TranslateButton که جدا از TranslateController بودند) و ترجمه‌ی تک‌پیام هنوز پنجره‌ی بازشو بود.
+- 🔄 **در حال تستِ کاربر (آخرین اسکریپت `bubble_translate_and_tags`):**
+  - تگ در پروفایلِ خود + هدرِ تنظیمات + لیستِ اکانت‌های تنظیمات.
+  - نوارِ Translate بالای همه‌ی چت‌ها (لمس → کلِ چت داخلِ حباب‌ها ترجمه، دوباره → Show Original).
+  - ترجمه‌ی تک‌پیام داخلِ خودِ حباب + «Show Original» در لمسِ طولانیِ دوباره.
 
 ## ۱۱) کارهای باقی‌مانده (Pending)
-1. تأییدِ کاربر برای: تگِ ۱،۲،۳،...؛ نوارِ Translate و ترجمه‌ی inline؛ ماندگاریِ وضعیت؛ تگ در Drawer.
-2. **دکمه‌ی ترجمه‌ی کلِ گروه در بالای صفحه** (اگر کاربر جدا از نوارِ خودکار بخواهد).
+1. تأییدِ کاربر برای اسکریپتِ `bubble_translate_and_tags` (تگ‌ها در همه‌جا + نوار + ترجمه‌ی حباب).
+2. اگر کاربر خواست تگ در جاهای بیشتری هم باشد (مثلاً صفحه‌ی ویرایشِ پروفایل)، محلِ نمایشِ
+   جدید را پیدا و پچ کن (الگو: `getAccountTagNumber`).
 3. رفعِ به‌هم‌ریختنِ **bidi فارسی/انگلیسی** موقعِ ترجمه.
 4. **«فقط اکانتِ فعال زنده باشد»** (پیشنهادِ کاربر): برای مصرفِ منابع در ۱۰۰ اکانت.
 5. **ری‌برندینگ:** نامِ اپ، آیکون، `applicationId` (تا کنارِ تلگرام رسمی نصب شود). نام هنوز انتخاب نشده.
 6. راهنمای اتصالِ سریع/پروکسیِ MTProto زیرِ فیلترینگ.
+
+### نکته‌های فنیِ این دور (برای ادامه)
+- «ترجمه‌ی کلِ چت» رسمی = نوارِ بالای چت؛ فعال‌شدنش ۳ لایه گیت داشت: TranslateController
+  (premium — قبلاً حذف شد)، ChatActivity (`showTranslate` و `onButtonClick` — premium جدا)،
+  TranslateButton (۳ جای premium) + شرطِ `translatableDialogs.contains` که فقط با تشخیصِ
+  زبانِ ML Kit گوگل پر می‌شود (روی گوشیِ کاربر با گوگلِ بلاک‌شده هرگز پر نمی‌شد).
+- ترجمه‌ی دستیِ تک‌پیام in-bubble: state در `manualTranslatedMessages` (حافظه، per-dialog+msgId)؛
+  بعد از ری‌استارتِ اپ پاک می‌شود (متنِ ترجمه در DB می‌ماند ولی حباب به اصل برمی‌گردد) — عمدی.
+- `MessageObject.updateTranslation` شرطش `isTranslatingDialog && !hidden` بود؛ حالا
+  `isMessageManuallyTranslated || (…)`. زبانِ مقصدِ ترجمه‌ی دستی همان `getDialogTranslateTo` است
+  تا شرطِ `TextUtils.equals(...)` برقرار بماند.
+- در ChatActivity سه محلِ `TranslateAlert2.showAlert` برای تک‌پیام هست (زبانِ معلوم/تشخیص/بدونِ
+  detector) — هر سه باید پچ شوند وگرنه بعضی پیام‌ها هنوز پنجره باز می‌کنند.
 
 ## ۱۲) درس‌های کلیدی برای گفتگوهای بعدی
 - همیشه اسکریپت + `.bat`، **کاملاً انگلیسی (ASCII)**، فایل را مستقیم بفرست (نه لینک).

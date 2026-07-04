@@ -413,6 +413,213 @@ def main():
                      "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
                      "account-tag: dialogs drawer switcher")
 
+    # ------------------------------------------------------------------
+    # 5.5) Number tag in MORE places: own profile header, Settings header,
+    #      and the accounts list inside Settings.
+    # ------------------------------------------------------------------
+    pa = "TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java"
+    sa = "TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java"
+    if cfg.get("account_number_tags", True):
+        print("5.5) Number tag in profile/settings")
+        replace_once(pa,
+                     "            CharSequence newString = UserObject.getUserName(user);\n"
+                     "            String newString2;",
+                     "            CharSequence newString = UserObject.getUserName(user);\n"
+                     "            if (user.id == getUserConfig().getClientUserId()) { newString = \"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + newString; } // [mod] account number tag (own profile)\n"
+                     "            String newString2;",
+                     "account-tag: own profile header")
+        replace_once(sa,
+                     "        titleView.setText(UserObject.getUserName(user));",
+                     "        titleView.setText(\"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings header)",
+                     "account-tag: settings header")
+        replace_once(sa,
+                     "            textView.setText(UserObject.getUserName(user));",
+                     "            textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)",
+                     "account-tag: settings accounts list")
+
+    # ------------------------------------------------------------------
+    # 6) Translate bar at the top of EVERY chat/group.
+    #    Officially the bar only appears after Google-ML language detection
+    #    marks the dialog as translatable, and only for premium users. ML
+    #    detection never completes on devices without Google services (our
+    #    case), so the bar never appeared. We show it in every normal dialog;
+    #    it can still be hidden per chat from its own menu.
+    # ------------------------------------------------------------------
+    ca = "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
+    tb = "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateButton.java"
+    if cfg.get("translate_bar_for_all", True):
+        print("6) Translate bar on top of every chat")
+        replace_once(tc,
+                     "        return (\n"
+                     "            translatableDialogs.contains(dialogId) &&\n"
+                     "            isFeatureAvailable(dialogId) &&",
+                     "        return (\n"
+                     "            isFeatureAvailable(dialogId) && // [mod] translate bar in all chats (no language detection needed)",
+                     "translate-bar: isDialogTranslatable without detection")
+        replace_once(ca,
+                     "        boolean showTranslate = (\n"
+                     "            getUserConfig().isPremium() || currentChat != null && currentChat.autotranslation ?\n"
+                     "                getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) && !getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) :\n"
+                     "                !getMessagesController().premiumFeaturesBlocked() && preferences.getInt(\"dialog_show_translate_count\" + did, 5) <= 0\n"
+                     "        ) || DEBUG_TOP_PANELS;",
+                     "        boolean showTranslate = (\n"
+                     "            getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) && !getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) // [mod] translate bar for everyone\n"
+                     "        ) || DEBUG_TOP_PANELS;",
+                     "translate-bar: show condition without premium")
+        replace_once(ca,
+                     "            protected void onButtonClick() {\n"
+                     "                if (getUserConfig().isPremium() || currentChat != null && currentChat.autotranslation) {\n"
+                     "                    getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId());\n"
+                     "                } else {\n"
+                     "                    MessagesController.getNotificationsSettings(currentAccount).edit().putInt(\"dialog_show_translate_count\" + getDialogId(), 14).commit();\n"
+                     "                    showDialog(new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_TRANSLATIONS, false));\n"
+                     "                }\n"
+                     "                updateTopPanel(true);\n"
+                     "            }",
+                     "            protected void onButtonClick() {\n"
+                     "                getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId()); // [mod] translate for everyone\n"
+                     "                updateTopPanel(true);\n"
+                     "            }",
+                     "translate-bar: button toggles translation")
+        replace_once(tb,
+                     "            if (UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation) {\n"
+                     "                onMenuClick();",
+                     "            if (true) { // [mod] translate settings menu for everyone\n"
+                     "                onMenuClick();",
+                     "translate-bar: settings menu for everyone")
+        replace_once(tb,
+                     "        menuView.setImageResource(UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation ? R.drawable.msg_mini_customize : R.drawable.msg_close);",
+                     "        menuView.setImageResource(R.drawable.msg_mini_customize); // [mod] translate settings menu for everyone",
+                     "translate-bar: customize icon for everyone")
+        replace_once(tb,
+                     "        if (UserConfig.getInstance(currentAccount).isPremium() && detectedLanguageNameAccusative != null) {",
+                     "        if (detectedLanguageNameAccusative != null) { // [mod] no premium",
+                     "translate-bar: do-not-translate option for everyone")
+
+    # ------------------------------------------------------------------
+    # 7) In-bubble translation for a SINGLE message (+ Show Original).
+    #    Long press -> Translate now translates the bubble itself (using the
+    #    same engine as whole-chat translation) instead of opening the popup;
+    #    long press again shows "Show Original" which restores the text.
+    # ------------------------------------------------------------------
+    mo = "TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java"
+    manual_helper = (
+        "    // [mod] manual single-message bubble translation\n"
+        "    private final HashMap<Long, HashSet<Integer>> manualTranslatedMessages = new HashMap<>();\n"
+        "\n"
+        "    public boolean isMessageManuallyTranslated(long dialogId, int messageId) {\n"
+        "        HashSet<Integer> set = manualTranslatedMessages.get(dialogId);\n"
+        "        return set != null && set.contains(messageId);\n"
+        "    }\n"
+        "\n"
+        "    public boolean isMessageManuallyTranslated(MessageObject messageObject) {\n"
+        "        return messageObject != null && messageObject.messageOwner != null && isMessageManuallyTranslated(messageObject.getDialogId(), messageObject.getId());\n"
+        "    }\n"
+        "\n"
+        "    public void toggleManualMessageTranslation(MessageObject messageObject) {\n"
+        "        if (messageObject == null || messageObject.messageOwner == null) {\n"
+        "            return;\n"
+        "        }\n"
+        "        final long dialogId = messageObject.getDialogId();\n"
+        "        HashSet<Integer> set = manualTranslatedMessages.get(dialogId);\n"
+        "        if (set == null) {\n"
+        "            manualTranslatedMessages.put(dialogId, set = new HashSet<>());\n"
+        "        }\n"
+        "        final int messageId = messageObject.getId();\n"
+        "        if (set.contains(messageId)) {\n"
+        "            set.remove(messageId);\n"
+        "            messageObject.updateTranslation(true);\n"
+        "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+        "            return;\n"
+        "        }\n"
+        "        set.add(messageId);\n"
+        "        final String language = getDialogTranslateTo(dialogId);\n"
+        "        final TLRPC.TL_textWithEntities existing = messageObject.messageOwner.voiceTranscriptionOpen ? messageObject.messageOwner.translatedVoiceTranscription : messageObject.messageOwner.translatedText;\n"
+        "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
+        "            messageObject.updateTranslation(true);\n"
+        "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+        "            return;\n"
+        "        }\n"
+        "        NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslating, messageObject);\n"
+        "        final MessageObject finalMessageObject = messageObject;\n"
+        "        pushToTranslate(finalMessageObject, language, (isTranscription, id, text, lang) -> {\n"
+        "            finalMessageObject.messageOwner.translatedToLanguage = lang;\n"
+        "            if (isTranscription) {\n"
+        "                finalMessageObject.messageOwner.translatedVoiceTranscription = text;\n"
+        "            } else {\n"
+        "                finalMessageObject.messageOwner.translatedText = text;\n"
+        "            }\n"
+        "            getMessagesStorage().updateMessageCustomParams(dialogId, finalMessageObject.messageOwner);\n"
+        "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, finalMessageObject, false);\n"
+        "        });\n"
+        "    }\n"
+        "\n"
+    )
+    bubble_call = (
+        "                                if (TranslateController.isTranslatable(selectedObject)) { // [mod] bubble translate\n"
+        "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+        "                                    closeMenu(false);\n"
+        "                                } else {\n"
+    )
+    label_new = "                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label\n"
+    if cfg.get("bubble_translate", True):
+        print("7) In-bubble single message translation")
+        replace_once(tc,
+                     "    public void toggleTranslatingDialog(long dialogId) {",
+                     manual_helper + "    public void toggleTranslatingDialog(long dialogId) {",
+                     "bubble: manual translation helper")
+        replace_once(mo,
+                     "            TranslateController.isTranslatable(this) &&\n"
+                     "            translateController.isTranslatingDialog(getDialogId()) &&\n"
+                     "            !translateController.isTranslateDialogHidden(getDialogId()) &&\n"
+                     "            (translatedText != null || messageOwner.translatedPoll != null) &&",
+                     "            TranslateController.isTranslatable(this) &&\n"
+                     "            (translateController.isMessageManuallyTranslated(getDialogId(), getId()) || translateController.isTranslatingDialog(getDialogId()) && !translateController.isTranslateDialogHidden(getDialogId())) && // [mod] bubble translate\n"
+                     "            (translatedText != null || messageOwner.translatedPoll != null) &&",
+                     "bubble: MessageObject accepts manual translation")
+        replace_once(ca,
+                     "                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, fromLang, toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));\n"
+                     "                                alert.setDimBehind(false);\n"
+                     "                                closeMenu(false);",
+                     bubble_call +
+                     "                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, fromLang, toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));\n"
+                     "                                alert.setDimBehind(false);\n"
+                     "                                closeMenu(false);\n"
+                     "                                }",
+                     "bubble: translate click site 1")
+        replace_once(ca,
+                     "                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, fromLang[0], toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));\n"
+                     "                                alert.setDimBehind(false);\n"
+                     "                                closeMenu(false);",
+                     bubble_call +
+                     "                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, fromLang[0], toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));\n"
+                     "                                alert.setDimBehind(false);\n"
+                     "                                closeMenu(false);\n"
+                     "                                }",
+                     "bubble: translate click site 2")
+        replace_once(ca,
+                     "                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, \"und\", toLang, finalMessageText, null, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));\n"
+                     "                                alert.setDimBehind(false);\n"
+                     "                                closeMenu(false);",
+                     bubble_call +
+                     "                                TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, \"und\", toLang, finalMessageText, null, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));\n"
+                     "                                alert.setDimBehind(false);\n"
+                     "                                closeMenu(false);\n"
+                     "                                }",
+                     "bubble: translate click site 3")
+        replace_once(ca,
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
+                     "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
+                     + label_new,
+                     "bubble: menu label site 1")
+        replace_once(ca,
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
+                     "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
+                     + label_new,
+                     "bubble: menu label site 2")
+
     print("\n=== All modifications applied successfully ===")
     print("Now open the Telegram folder in Android Studio and Build.")
 
