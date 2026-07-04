@@ -66,6 +66,11 @@ def replace_once(rel, old, new, label, optional=False):
     print(f"  OK [{label}] applied in {rel}")
 
 
+def file_contains(rel, needle):
+    with open(_path(rel), "r", encoding="utf-8") as f:
+        return needle in f.read()
+
+
 def replace_all(rel, old, new, label):
     """Replace every occurrence of a repeated pattern (e.g. the native jniEnv
     fix in 35 places). Idempotent: if no occurrence of old remains, it's done."""
@@ -526,9 +531,8 @@ def main():
         "            manualTranslatedMessages.put(dialogId, set = new HashSet<>());\n"
         "        }\n"
         "        final int messageId = messageObject.getId();\n"
-        "        if (set.contains(messageId)) {\n"
+        "        if (set.contains(messageId) && messageObject.translated) {\n"
         "            set.remove(messageId);\n"
-        "            messageObject.updateTranslation(true);\n"
         "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
         "            return;\n"
         "        }\n"
@@ -536,7 +540,6 @@ def main():
         "        final String language = getDialogTranslateTo(dialogId);\n"
         "        final TLRPC.TL_textWithEntities existing = messageObject.messageOwner.voiceTranscriptionOpen ? messageObject.messageOwner.translatedVoiceTranscription : messageObject.messageOwner.translatedText;\n"
         "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
-        "            messageObject.updateTranslation(true);\n"
         "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
         "            return;\n"
         "        }\n"
@@ -564,6 +567,38 @@ def main():
     label_new = "                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label\n"
     if cfg.get("bubble_translate", True):
         print("7) In-bubble single message translation")
+        # Hotfixes in case a previous version of the helper is already in the
+        # source (it called updateTranslation(true) itself, which consumed the
+        # state change so the chat screen never repainted the bubble; and a
+        # failed translation left the message flagged so the next tap did
+        # nothing). Must run BEFORE the insert below.
+        if file_contains(tc, "manualTranslatedMessages"):
+            replace_once(tc,
+                         "        final int messageId = messageObject.getId();\n"
+                         "        if (set.contains(messageId)) {\n"
+                         "            set.remove(messageId);\n"
+                         "            messageObject.updateTranslation(true);\n"
+                         "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+                         "            return;\n"
+                         "        }",
+                         "        final int messageId = messageObject.getId();\n"
+                         "        if (set.contains(messageId) && messageObject.translated) {\n"
+                         "            set.remove(messageId);\n"
+                         "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+                         "            return;\n"
+                         "        }",
+                         "bubble: hotfix undo repaint + failure retry", optional=True)
+            replace_once(tc,
+                         "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
+                         "            messageObject.updateTranslation(true);\n"
+                         "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+                         "            return;\n"
+                         "        }",
+                         "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
+                         "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+                         "            return;\n"
+                         "        }",
+                         "bubble: hotfix cached translation repaint", optional=True)
         replace_once(tc,
                      "    public void toggleTranslatingDialog(long dialogId) {",
                      manual_helper + "    public void toggleTranslatingDialog(long dialogId) {",

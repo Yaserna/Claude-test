@@ -84,9 +84,11 @@ def write(path, text):
         f.write(text)
 
 
-def patch(root, file_key, old, new, label):
+def patch(root, file_key, old, new, label, optional=False):
     """Idempotent single replacement. Never stops the script: unexpected
-    situations are collected as warnings and printed in the final report."""
+    situations are collected as warnings and printed in the final report.
+    optional=True: absence of the old text is normal (hotfix for a previous
+    script version) and is not even reported as a warning."""
     global applied, skipped
     path = os.path.join(root, JAVA_BASE, FILES[file_key])
     if not os.path.isfile(path):
@@ -100,6 +102,10 @@ def patch(root, file_key, old, new, label):
         return
     count = text.count(old)
     if count == 0:
+        if optional:
+            print("  -- [%s] not needed on this copy" % label)
+            skipped += 1
+            return
         warnings.append("[%s] original text not found in %s "
                         "(source differs; patch not applied)" % (label, FILES[file_key]))
         print("  !! [%s] original text NOT FOUND, skipped" % label)
@@ -165,9 +171,8 @@ MANUAL_TRANSLATION_HELPER = (
     "            manualTranslatedMessages.put(dialogId, set = new HashSet<>());\n"
     "        }\n"
     "        final int messageId = messageObject.getId();\n"
-    "        if (set.contains(messageId)) {\n"
+    "        if (set.contains(messageId) && messageObject.translated) {\n"
     "            set.remove(messageId);\n"
-    "            messageObject.updateTranslation(true);\n"
     "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
     "            return;\n"
     "        }\n"
@@ -175,7 +180,6 @@ MANUAL_TRANSLATION_HELPER = (
     "        final String language = getDialogTranslateTo(dialogId);\n"
     "        final TLRPC.TL_textWithEntities existing = messageObject.messageOwner.voiceTranscriptionOpen ? messageObject.messageOwner.translatedVoiceTranscription : messageObject.messageOwner.translatedText;\n"
     "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
-    "            messageObject.updateTranslation(true);\n"
     "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
     "            return;\n"
     "        }\n"
@@ -310,6 +314,37 @@ def main():
     # C) In-bubble translation for a single message (+ Show Original)
     # ------------------------------------------------------------------
     print("\nC) In-bubble single message translation")
+    # Hotfixes for the previous version of this script: the helper used to call
+    # updateTranslation(true) itself, which consumed the state change so the
+    # chat screen never repainted the bubble (undo / re-translate looked dead),
+    # and a failed translation left the message flagged so the next tap did
+    # nothing. Applied BEFORE the insert so an old helper is repaired in place.
+    patch(root, "TranslateController",
+          "        final int messageId = messageObject.getId();\n"
+          "        if (set.contains(messageId)) {\n"
+          "            set.remove(messageId);\n"
+          "            messageObject.updateTranslation(true);\n"
+          "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+          "            return;\n"
+          "        }",
+          "        final int messageId = messageObject.getId();\n"
+          "        if (set.contains(messageId) && messageObject.translated) {\n"
+          "            set.remove(messageId);\n"
+          "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+          "            return;\n"
+          "        }",
+          "bubble: hotfix undo repaint + failure retry", optional=True)
+    patch(root, "TranslateController",
+          "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
+          "            messageObject.updateTranslation(true);\n"
+          "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+          "            return;\n"
+          "        }",
+          "        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {\n"
+          "            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);\n"
+          "            return;\n"
+          "        }",
+          "bubble: hotfix cached translation repaint", optional=True)
     patch(root, "TranslateController",
           "    public void toggleTranslatingDialog(long dialogId) {",
           MANUAL_TRANSLATION_HELPER +
