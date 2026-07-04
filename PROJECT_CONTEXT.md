@@ -323,6 +323,18 @@ public boolean isFeatureAvailable(long dialogId) {
   تا شرطِ `TextUtils.equals(...)` برقرار بماند.
 - در ChatActivity سه محلِ `TranslateAlert2.showAlert` برای تک‌پیام هست (زبانِ معلوم/تشخیص/بدونِ
   detector) — هر سه باید پچ شوند وگرنه بعضی پیام‌ها هنوز پنجره باز می‌کنند.
+- **باگِ فریزِ چت (گزارشِ کاربر، رفع شد):** در مسیرِ ترجمه‌ی حباب `closeMenu(false)` یعنی
+  «تاریکیِ پشتِ منو را نگه دار» (در کدِ اصلی پنجره‌ی TranslateAlert2 موقعِ بسته‌شدن
+  `dimBehindView(false)` را صدا می‌زد). بدونِ پنجره، scrim برای همیشه می‌ماند و چت به لمس جواب
+  نمی‌داد. فیکس: در شاخه‌ی [mod] از `closeMenu()` استفاده شود.
+- **باگِ نبودِ گزینه‌ی لغو (گزارشِ کاربر، رفع شد):** `getMessageTextToTranslate` برای پیامِ
+  translated مقدارِ null می‌دهد → شرطِ `!TextUtils.isEmpty(...)` گزینه‌ی Translate را برای پیامِ
+  ترجمه‌شده اصلاً به منو اضافه نمی‌کرد. فیکس: شرطِ ساختِ منو با
+  `isMessageManuallyTranslated(selectedObject) ||` باز شد + یک شاخه‌ی کلیکِ اختصاصیِ undo قبل از
+  بلوکِ عادیِ OPTION_TRANSLATE (چون مسیرِ عادی به getMessageTextToTranslate تکیه دارد که null است).
+- **باگِ رفرش‌نشدنِ حباب (رفع شد):** helperِ ترجمه‌ی دستی نباید خودش `updateTranslation(true)` را
+  صدا بزند؛ باید فقط notification بفرستد تا `updateMessageTranslation` در ChatActivity گذارِ
+  وضعیت را ببیند و سلول را دوباره رسم کند.
 
 ## ۱۲) درس‌های کلیدی برای گفتگوهای بعدی
 - همیشه اسکریپت + `.bat`، **کاملاً انگلیسی (ASCII)**، فایل را مستقیم بفرست (نه لینک).

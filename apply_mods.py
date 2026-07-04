@@ -561,10 +561,10 @@ def main():
     bubble_call = (
         "                                if (TranslateController.isTranslatable(selectedObject)) { // [mod] bubble translate\n"
         "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
-        "                                    closeMenu(false);\n"
+        "                                    closeMenu();\n"
         "                                } else {\n"
     )
-    label_new = "                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label\n"
+    label_new = "                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label"
     if cfg.get("bubble_translate", True):
         print("7) In-bubble single message translation")
         # Hotfixes in case a previous version of the helper is already in the
@@ -642,18 +642,47 @@ def main():
                      "                                closeMenu(false);\n"
                      "                                }",
                      "bubble: translate click site 3")
+        # Freeze hotfix for sources patched by an older version of section 7:
+        # closeMenu(false) kept the dark scrim alive (the popup used to remove
+        # it); without the popup the chat stayed dimmed and unresponsive.
+        if file_contains(ca, "toggleManualMessageTranslation(selectedObject);\n                                    closeMenu(false);"):
+            replace_all(ca,
+                        "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+                        "                                    closeMenu(false);",
+                        "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+                        "                                    closeMenu();",
+                        "bubble: hotfix chat freeze after translate")
+        # "Show Original" label for a manually translated bubble (both menus).
+        replace_all(ca,
+                    "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
+                    label_new,
+                    "bubble: menu label (Show Original)")
+        # A translated message returns null from getMessageTextToTranslate, so
+        # the Translate option was never added for a translated bubble -> no
+        # way to undo. Open the menu entry for manually translated messages.
         replace_once(ca,
-                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-                     "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
-                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-                     + label_new,
-                     "bubble: menu label site 1")
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {",
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) { // [mod] undo option",
+                     "bubble: show undo entry site 1")
         replace_once(ca,
-                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-                     "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
-                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-                     + label_new,
-                     "bubble: menu label site 2")
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {",
+                     "                if (selectedObject != null && selectedObject.contentType == 0 && (getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) { // [mod] undo option",
+                     "bubble: show undo entry site 2")
+        # Dedicated undo click branch (the normal translate path relies on
+        # getMessageTextToTranslate which is null for a translated message).
+        replace_once(ca,
+                     "                    if (option == OPTION_TRANSLATE) {",
+                     "                    if (option == OPTION_TRANSLATE && selectedObject != null && getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject)) { // [mod] undo bubble translation\n"
+                     "                        cell.setVisibility(View.VISIBLE);\n"
+                     "                        cell.setOnClickListener(e2 -> {\n"
+                     "                            if (selectedObject == null || i >= options.size()) {\n"
+                     "                                return;\n"
+                     "                            }\n"
+                     "                            getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+                     "                            closeMenu();\n"
+                     "                        });\n"
+                     "                    } else if (option == OPTION_TRANSLATE) {",
+                     "bubble: undo click branch")
 
     print("\n=== All modifications applied successfully ===")
     print("Now open the Telegram folder in Android Studio and Build.")

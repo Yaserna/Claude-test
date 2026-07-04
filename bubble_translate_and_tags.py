@@ -120,6 +120,30 @@ def patch(root, file_key, old, new, label, optional=False):
     applied += 1
 
 
+def patch_multi(root, file_key, old, new, label):
+    """Idempotent replacement of EVERY occurrence (used when the same text
+    appears at several places on purpose)."""
+    global applied, skipped
+    path = os.path.join(root, JAVA_BASE, FILES[file_key])
+    if not os.path.isfile(path):
+        warnings.append("[%s] file not found: %s" % (label, path))
+        print("  !! [%s] FILE NOT FOUND" % label)
+        return
+    text = read(path)
+    count = text.count(old)
+    if count == 0:
+        if new in text:
+            print("  -- [%s] already applied, skipped" % label)
+            skipped += 1
+        else:
+            print("  -- [%s] not needed on this copy" % label)
+            skipped += 1
+        return
+    write(path, text.replace(old, new))
+    print("  OK [%s] (%d places)" % (label, count))
+    applied += 1
+
+
 def contains(root, file_key, needle):
     path = os.path.join(root, JAVA_BASE, FILES[file_key])
     return os.path.isfile(path) and needle in read(path)
@@ -360,10 +384,21 @@ def main():
           "            (translatedText != null || messageOwner.translatedPoll != null) &&",
           "bubble: MessageObject accepts manual translation")
 
+    # Freeze hotfix for the previous script version: closeMenu(false) keeps the
+    # dark scrim behind the popup menu alive (the popup window used to remove
+    # it on dismiss); without the popup the chat stayed dimmed and unresponsive
+    # until reopened. closeMenu() removes the scrim itself.
+    patch_multi(root, "ChatActivity",
+                "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+                "                                    closeMenu(false);",
+                "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+                "                                    closeMenu();",
+                "bubble: hotfix chat freeze after translate")
+
     bubble_call = (
         "                                if (TranslateController.isTranslatable(selectedObject)) { // [mod] bubble translate\n"
         "                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
-        "                                    closeMenu(false);\n"
+        "                                    closeMenu();\n"
         "                                } else {\n"
     )
     patch(root, "ChatActivity",
@@ -397,19 +432,42 @@ def main():
           "                                }",
           "bubble: translate click site 3 (no detector)")
 
-    label_new = ("                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label\n")
+    # "Show Original" label for a manually translated bubble.
+    label_new = "                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label"
+    patch_multi(root, "ChatActivity",
+                "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
+                label_new,
+                "bubble: menu label (Show Original)")
+
+    # A translated message returns null from getMessageTextToTranslate, so the
+    # Translate option was never even ADDED to the menu for a translated bubble
+    # -> there was no way to undo. The manual-translation state must open the
+    # menu entry too (both menu variants).
     patch(root, "ChatActivity",
-          "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-          "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
-          "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-          + label_new,
-          "bubble: menu label site 1 (Show Original)")
+          "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {",
+          "                if (selectedObject != null && selectedObject.contentType == 0 && (getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) { // [mod] undo option",
+          "bubble: show undo entry site 1")
     patch(root, "ChatActivity",
-          "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-          "                    items.add(LocaleController.getString(R.string.TranslateMessage));",
-          "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {\n"
-          + label_new,
-          "bubble: menu label site 2 (Show Original)")
+          "                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {",
+          "                if (selectedObject != null && selectedObject.contentType == 0 && (getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) { // [mod] undo option",
+          "bubble: show undo entry site 2")
+
+    # The click handler for a manually translated bubble must not go through
+    # the normal translate path (getMessageTextToTranslate is null there and
+    # the language checks could hide the option) -> dedicated undo branch.
+    patch(root, "ChatActivity",
+          "                    if (option == OPTION_TRANSLATE) {",
+          "                    if (option == OPTION_TRANSLATE && selectedObject != null && getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject)) { // [mod] undo bubble translation\n"
+          "                        cell.setVisibility(View.VISIBLE);\n"
+          "                        cell.setOnClickListener(e2 -> {\n"
+          "                            if (selectedObject == null || i >= options.size()) {\n"
+          "                                return;\n"
+          "                            }\n"
+          "                            getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);\n"
+          "                            closeMenu();\n"
+          "                        });\n"
+          "                    } else if (option == OPTION_TRANSLATE) {",
+          "bubble: undo click branch")
 
     # ------------------------------------------------------------------
     print("\n=== RESULT: %d applied, %d already done, %d warnings ===" % (applied, skipped, len(warnings)))
