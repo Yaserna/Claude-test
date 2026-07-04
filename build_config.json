@@ -3,6 +3,7 @@
   "upstream_repo": "https://github.com/DrKLO/Telegram.git",
   "upstream_commit": "9b50143d8896d255d03155598937e4f3e28afd86",
   "upstream_version": "12.8.1 (6916)",
+  "update_target": "pinned",
 
   "app_name": "YasTel",
   "rebrand": true,

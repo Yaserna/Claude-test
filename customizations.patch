@@ -1,0 +1,767 @@
+diff --git a/TMessagesProj/build.gradle b/TMessagesProj/build.gradle
+index 61a65305..761d6245 100644
+--- a/TMessagesProj/build.gradle
++++ b/TMessagesProj/build.gradle
+@@ -127,7 +127,8 @@ android {
+ 
+     buildTypes {
+         debug {
+-            jniDebuggable true
++            jniDebuggable false
++            debuggable false
+             minifyEnabled false
+             shrinkResources false
+             multiDexEnabled true
+diff --git a/TMessagesProj/jni/TgNetWrapper.cpp b/TMessagesProj/jni/TgNetWrapper.cpp
+index 0f8bc556..4a18489c 100644
+--- a/TMessagesProj/jni/TgNetWrapper.cpp
++++ b/TMessagesProj/jni/TgNetWrapper.cpp
+@@ -15,6 +15,14 @@
+ 
+ JavaVM *java;
+ 
++static inline JNIEnv *tgCurrentEnv() {
++    JNIEnv *env = nullptr;
++    if (java->GetEnv((void **) &env, JNI_VERSION_1_6) != JNI_OK) {
++        java->AttachCurrentThread(&env, nullptr);
++    }
++    return env;
++}
++
+ jclass jclass_RequestTimeDelegate;
+ jmethodID jclass_RequestTimeDelegate_run;
+ 
+@@ -121,27 +129,27 @@ void sendRequest(JNIEnv *env, jclass c, jint instanceNum, jlong object, jint fla
+             const char *text = error->text.c_str();
+             size_t size = error->text.size();
+             if (check_utf8(text, size)) {
+-                errorText = jniEnv[instanceNum]->NewStringUTF(text);
++                errorText = tgCurrentEnv()->NewStringUTF(text);
+             } else {
+-                errorText = jniEnv[instanceNum]->NewStringUTF("UTF-8 ERROR");
++                errorText = tgCurrentEnv()->NewStringUTF("UTF-8 ERROR");
+             }
+         }
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestComplete, instanceNum, token, ptr, errorCode, errorText, networkType, responseTime, msgId, dcId);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestComplete, instanceNum, token, ptr, errorCode, errorText, networkType, responseTime, msgId, dcId);
+         if (errorText != nullptr) {
+-            jniEnv[instanceNum]->DeleteLocalRef(errorText);
++            tgCurrentEnv()->DeleteLocalRef(errorText);
+         }
+     }), ([instanceNum, token] {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestQuickAck, instanceNum, token);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestQuickAck, instanceNum, token);
+     }), ([instanceNum, token] {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestWriteToSocket, instanceNum, token);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestWriteToSocket, instanceNum, token);
+     }), ([instanceNum, token] {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestClear, instanceNum, token, false);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestClear, instanceNum, token, false);
+     }), (uint32_t) flags, (uint32_t) datacenterId, (ConnectionType) connectionType, immediate, token);
+ }
+ 
+ void cancelRequest(JNIEnv *env, jclass c, jint instanceNum, jint token, jboolean notifyServer) {
+     return ConnectionsManager::getInstance(instanceNum).cancelRequest(token, notifyServer, ([instanceNum, token]() -> void {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestClear, instanceNum, token, true);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestClear, instanceNum, token, true);
+     }));
+ }
+ 
+@@ -311,7 +319,7 @@ jlong checkProxy(JNIEnv *env, jclass c, jint instanceNum, jstring address, jint
+ 
+     jlong result = ConnectionsManager::getInstance(instanceNum).checkProxy(addressStr, (uint16_t) port, usernameStr, passwordStr, secretStr, [instanceNum, requestTimeFunc](int64_t time) {
+         if (requestTimeFunc != nullptr) {
+-            jniEnv[instanceNum]->CallVoidMethod(requestTimeFunc, jclass_RequestTimeDelegate_run, time);
++            tgCurrentEnv()->CallVoidMethod(requestTimeFunc, jclass_RequestTimeDelegate_run, time);
+         }
+     }, requestTimeFunc);
+ 
+@@ -334,83 +342,83 @@ jlong checkProxy(JNIEnv *env, jclass c, jint instanceNum, jstring address, jint
+ class Delegate : public ConnectiosManagerDelegate {
+     
+     void onUpdate(int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUpdate, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUpdate, instanceNum);
+     }
+     
+     void onSessionCreated(int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onSessionCreated, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onSessionCreated, instanceNum);
+     }
+     
+     void onConnectionStateChanged(ConnectionState state, int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onConnectionStateChanged, state, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onConnectionStateChanged, state, instanceNum);
+     }
+     
+     void onUnparsedMessageReceived(int64_t reqMessageId, NativeByteBuffer *buffer, ConnectionType connectionType, int32_t instanceNum) {
+         if (connectionType == ConnectionTypeGeneric) {
+-            jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUnparsedMessageReceived, (jlong) (intptr_t) buffer, instanceNum, reqMessageId);
++            tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUnparsedMessageReceived, (jlong) (intptr_t) buffer, instanceNum, reqMessageId);
+         }
+     }
+     
+     void onLogout(int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onLogout, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onLogout, instanceNum);
+     }
+     
+     void onUpdateConfig(TL_config *config, int32_t instanceNum) {
+         NativeByteBuffer *buffer = BuffersStorage::getInstance().getFreeBuffer(config->getObjectSize());
+         config->serializeToStream(buffer);
+         buffer->position(0);
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUpdateConfig, (jlong) (intptr_t) buffer, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUpdateConfig, (jlong) (intptr_t) buffer, instanceNum);
+         buffer->reuse();
+     }
+     
+     void onInternalPushReceived(int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onInternalPushReceived, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onInternalPushReceived, instanceNum);
+     }
+ 
+     void onBytesReceived(int32_t amount, int32_t networkType, int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onBytesReceived, amount, networkType, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onBytesReceived, amount, networkType, instanceNum);
+     }
+ 
+     void onBytesSent(int32_t amount, int32_t networkType, int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onBytesSent, amount, networkType, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onBytesSent, amount, networkType, instanceNum);
+     }
+ 
+     void onRequestNewServerIpAndPort(int32_t second, int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestNewServerIpAndPort, second, instanceNum);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestNewServerIpAndPort, second, instanceNum);
+     }
+ 
+     void onProxyError(int32_t instanceNum) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onProxyError);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onProxyError);
+     }
+ 
+     void getHostByName(std::string domain, int32_t instanceNum, ConnectionSocket *socket) {
+-        jstring domainName = jniEnv[instanceNum]->NewStringUTF(domain.c_str());
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getHostByName, domainName, (jlong) (intptr_t) socket);
+-        jniEnv[instanceNum]->DeleteLocalRef(domainName);
++        jstring domainName = tgCurrentEnv()->NewStringUTF(domain.c_str());
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getHostByName, domainName, (jlong) (intptr_t) socket);
++        tgCurrentEnv()->DeleteLocalRef(domainName);
+     }
+ 
+     int32_t getInitFlags(int32_t instanceNum) {
+-        return (int32_t) jniEnv[instanceNum]->CallStaticIntMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getInitFlags);
++        return (int32_t) tgCurrentEnv()->CallStaticIntMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getInitFlags);
+     }
+ 
+     void onPremiumFloodWait(int32_t instanceNum, int32_t requestToken, bool isUpload) {
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onPremiumFloodWait, instanceNum, requestToken, isUpload);
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onPremiumFloodWait, instanceNum, requestToken, isUpload);
+     }
+ 
+     void onIntegrityCheckClassic(int32_t instanceNum, int32_t requestToken, std::string project, std::string nonce) {
+-        jstring projectStr = jniEnv[instanceNum]->NewStringUTF(project.c_str());
+-        jstring nonceStr = jniEnv[instanceNum]->NewStringUTF(nonce.c_str());
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onIntegrityCheckClassic, instanceNum, requestToken, projectStr, nonceStr);
+-        jniEnv[instanceNum]->DeleteLocalRef(projectStr);
+-        jniEnv[instanceNum]->DeleteLocalRef(nonceStr);
++        jstring projectStr = tgCurrentEnv()->NewStringUTF(project.c_str());
++        jstring nonceStr = tgCurrentEnv()->NewStringUTF(nonce.c_str());
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onIntegrityCheckClassic, instanceNum, requestToken, projectStr, nonceStr);
++        tgCurrentEnv()->DeleteLocalRef(projectStr);
++        tgCurrentEnv()->DeleteLocalRef(nonceStr);
+     }
+ 
+     void onCaptchaCheck(int32_t instanceNum, int32_t requestToken, std::string action, std::string key_id) {
+-        jstring actionStr = jniEnv[instanceNum]->NewStringUTF(action.c_str());
+-        jstring keyIdStr = jniEnv[instanceNum]->NewStringUTF(key_id.c_str());
+-        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onCaptchaCheck, instanceNum, requestToken, actionStr, keyIdStr);
+-        jniEnv[instanceNum]->DeleteLocalRef(actionStr);
+-        jniEnv[instanceNum]->DeleteLocalRef(keyIdStr);
++        jstring actionStr = tgCurrentEnv()->NewStringUTF(action.c_str());
++        jstring keyIdStr = tgCurrentEnv()->NewStringUTF(key_id.c_str());
++        tgCurrentEnv()->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onCaptchaCheck, instanceNum, requestToken, actionStr, keyIdStr);
++        tgCurrentEnv()->DeleteLocalRef(actionStr);
++        tgCurrentEnv()->DeleteLocalRef(keyIdStr);
+     }
+ 
+ };
+diff --git a/TMessagesProj/jni/tgnet/ConnectionsManager.cpp b/TMessagesProj/jni/tgnet/ConnectionsManager.cpp
+index 32d590e8..4a1ddf0e 100644
+--- a/TMessagesProj/jni/tgnet/ConnectionsManager.cpp
++++ b/TMessagesProj/jni/tgnet/ConnectionsManager.cpp
+@@ -136,24 +136,19 @@ ConnectionsManager::~ConnectionsManager() {
+ }
+ 
+ ConnectionsManager& ConnectionsManager::getInstance(int32_t instanceNum) {
+-    switch (instanceNum) {
+-        case 0:
+-            static ConnectionsManager instance0(0);
+-            return instance0;
+-        case 1:
+-            static ConnectionsManager instance1(1);
+-            return instance1;
+-        case 2:
+-            static ConnectionsManager instance2(2);
+-            return instance2;
+-        case 3:
+-            static ConnectionsManager instance3(3);
+-            return instance3;
+-        case 4:
+-        default:
+-            static ConnectionsManager instance4(4);
+-            return instance4;
++    static std::map<int32_t, ConnectionsManager *> instances;
++    static pthread_mutex_t instancesMutex = PTHREAD_MUTEX_INITIALIZER;
++    if (instanceNum < 0) {
++        instanceNum = 0;
+     }
++    pthread_mutex_lock(&instancesMutex);
++    ConnectionsManager *result = instances[instanceNum];
++    if (result == nullptr) {
++        result = new ConnectionsManager(instanceNum);
++        instances[instanceNum] = result;
++    }
++    pthread_mutex_unlock(&instancesMutex);
++    return *result;
+ }
+ 
+ int ConnectionsManager::callEvents(int64_t now) {
+@@ -2567,6 +2562,10 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t
+         }
+ 
+         Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);
++        if (connection == nullptr) {
++            iter++;
++            continue;
++        }
+         int32_t maxTimeout = request->connectionType & ConnectionTypeGeneric ? 8 : 30;
+         if (!networkAvailable || connection->getConnectionToken() == 0) {
+             iter++;
+@@ -2818,6 +2817,10 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t
+         }
+ 
+         Connection *connection = requestDatacenter->getConnectionByType(request->connectionType, true, canUseUnboundKey);
++        if (connection == nullptr) {
++            iter++;
++            continue;
++        }
+ 
+         if (request->connectionType & ConnectionTypeGeneric && connection->getConnectionToken() == 0) {
+             iter++;
+diff --git a/TMessagesProj/jni/tgnet/Defines.h b/TMessagesProj/jni/tgnet/Defines.h
+index 80c1c2a0..b37270b9 100644
+--- a/TMessagesProj/jni/tgnet/Defines.h
++++ b/TMessagesProj/jni/tgnet/Defines.h
+@@ -27,7 +27,7 @@
+ #define DOWNLOAD_CONNECTIONS_COUNT 2
+ #define UPLOAD_CONNECTIONS_COUNT 4
+ #define CONNECTION_BACKGROUND_KEEP_TIME 10000
+-#define MAX_ACCOUNT_COUNT 5
++#define MAX_ACCOUNT_COUNT 100
+ #define USE_DELEGATE_HOST_RESOLVE
+ 
+ #define USE_IPV4_ONLY 0
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java b/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+index fc43c648..b36436e1 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+@@ -213,6 +213,7 @@ public class ApplicationLoader extends Application {
+ 
+                     boolean isSlow = isConnectionSlow();
+                     for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
++                        if (a != 0 && !UserConfig.getInstance(a).isClientActivated()) continue;
+                         ConnectionsManager.getInstance(a).checkConnection();
+                         FileLoader.getInstance(a).onNetworkChanged(isSlow);
+                     }
+@@ -247,6 +248,7 @@ public class ApplicationLoader extends Application {
+         SharedPrefsHelper.init(applicationContext);
+         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
+             UserConfig.getInstance(a).loadConfig();
++            if (a != 0 && !UserConfig.getInstance(a).isClientActivated()) continue;
+             MessagesController.getInstance(a);
+             if (a == 0) {
+                 SharedConfig.pushStringStatus = "__FIREBASE_GENERATING_SINCE_" + ConnectionsManager.getInstance(a).getCurrentTime() + "__";
+@@ -268,6 +270,7 @@ public class ApplicationLoader extends Application {
+ 
+         MediaController.getInstance();
+         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
++            if (a != 0 && !UserConfig.getInstance(a).isClientActivated()) continue;
+             ContactsController.getInstance(a).checkAppAccount();
+             DownloadController.getInstance(a);
+         }
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/LocationController.java b/TMessagesProj/src/main/java/org/telegram/messenger/LocationController.java
+index 070c19c9..a046fdc0 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/LocationController.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/LocationController.java
+@@ -941,6 +941,9 @@ public class LocationController extends BaseController implements NotificationCe
+     public static int getLocationsCount() {
+         int count = 0;
+         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
++            if (!UserConfig.getInstance(a).isClientActivated()) {
++                continue;
++            }
+             count += LocationController.getInstance(a).sharingLocationsUI.size();
+         }
+         return count;
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java b/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java
+index 64c207dd..aaa132ce 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/MessageObject.java
+@@ -3687,8 +3687,7 @@ public class MessageObject {
+         } else if (
+             messageOwner != null &&
+             TranslateController.isTranslatable(this) &&
+-            translateController.isTranslatingDialog(getDialogId()) &&
+-            !translateController.isTranslateDialogHidden(getDialogId()) &&
++            (translateController.isMessageManuallyTranslated(getDialogId(), getId()) || translateController.isTranslatingDialog(getDialogId()) && !translateController.isTranslateDialogHidden(getDialogId())) && // [mod] bubble translate
+             (translatedText != null || messageOwner.translatedPoll != null) &&
+             TextUtils.equals(translateController.getDialogTranslateTo(getDialogId()), messageOwner.translatedToLanguage)
+         ) {
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java b/TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java
+index 622adb0f..629e4c78 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java
+@@ -1696,8 +1696,8 @@ public class MessagesController extends BaseController implements NotificationCe
+         todoItemsMax = mainPreferences.getInt("todoItemsMax", isTest ? 10 : 30);
+         todoTitleLengthMax = mainPreferences.getInt("todoTitleLengthMax", 32);
+         todoItemLengthMax = mainPreferences.getInt("todoItemLengthMax", 64);
+-        translationsManualEnabled = mainPreferences.getString("translationsManualEnabled", "enabled");
+-        translationsAutoEnabled = mainPreferences.getString("translationsAutoEnabled", "enabled");
++        translationsManualEnabled = "alternative"; // [mod] Nekogram-style: Google translate engine
++        translationsAutoEnabled = "alternative"; // [mod] Nekogram-style: Google translate engine
+         whitelistedBots = mainPreferences.getStringSet("whitelistedBots", new HashSet<>()).stream().map(s -> tryParseLong(s, 0)).collect(Collectors.toCollection(HashSet::new));
+         starsGroupcallMessageAmountMax = mainPreferences.getInt("starsGroupcallMessageAmountMax", 10_000);
+         starsGroupcallMessageLimits = parseTiersString(mainPreferences.getString("starsGroupcallMessageLimits", null));
+@@ -4864,7 +4864,7 @@ public class MessagesController extends BaseController implements NotificationCe
+                 case "translations_manual_enabled": {
+                     if (value.value instanceof TLRPC.TL_jsonString) {
+                         TLRPC.TL_jsonString str = (TLRPC.TL_jsonString) value.value;
+-                        if (!TextUtils.equals(translationsManualEnabled, str.value)) {
++                        if (false) { // [mod] keep Nekogram-style translation engine (manual)
+                             translationsManualEnabled = str.value;
+                             editor.putString("translationsManualEnabled", translationsManualEnabled);
+                             changed = true;
+@@ -4875,7 +4875,7 @@ public class MessagesController extends BaseController implements NotificationCe
+                 case "translations_auto_enabled": {
+                     if (value.value instanceof TLRPC.TL_jsonString) {
+                         TLRPC.TL_jsonString str = (TLRPC.TL_jsonString) value.value;
+-                        if (!TextUtils.equals(translationsAutoEnabled, str.value)) {
++                        if (false) { // [mod] keep Nekogram-style translation engine (auto)
+                             translationsAutoEnabled = str.value;
+                             editor.putString("translationsAutoEnabled", translationsAutoEnabled);
+                             changed = true;
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/TranslateController.java b/TMessagesProj/src/main/java/org/telegram/messenger/TranslateController.java
+index 7c358d45..384c8d57 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/TranslateController.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/TranslateController.java
+@@ -90,18 +90,14 @@ public class TranslateController extends BaseController {
+     }
+ 
+     public boolean isFeatureAvailable() {
+-        return isChatTranslateEnabled() && UserConfig.getInstance(currentAccount).isPremium();
++        return isChatTranslateEnabled();
+     }
+ 
+     public boolean isFeatureAvailable(long dialogId) {
+         if (!isChatTranslateEnabled()) {
+             return false;
+         }
+-        final TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
+-        return (
+-            UserConfig.getInstance(currentAccount).isPremium() ||
+-            chat != null && chat.autotranslation
+-        );
++        return true; // [mod] chat/group translate enabled for everyone
+     }
+ 
+     private Boolean chatTranslateEnabled;
+@@ -122,7 +118,7 @@ public class TranslateController extends BaseController {
+             return false;
+         }
+         if (contextTranslateEnabled == null) {
+-            contextTranslateEnabled = messagesController.getMainSettings().getBoolean("translate_button", MessagesController.getGlobalMainSettings().getBoolean("translate_button", false));
++            contextTranslateEnabled = messagesController.getMainSettings().getBoolean("translate_button", MessagesController.getGlobalMainSettings().getBoolean("translate_button", true));
+         }
+         return contextTranslateEnabled;
+     }
+@@ -189,8 +185,7 @@ public class TranslateController extends BaseController {
+ 
+     public boolean isDialogTranslatable(long dialogId) {
+         return (
+-            translatableDialogs.contains(dialogId) &&
+-            isFeatureAvailable(dialogId) &&
++            isFeatureAvailable(dialogId) && // [mod] translate bar in all chats (no language detection needed)
+             !DialogObject.isEncryptedDialog(dialogId) &&
+             getUserConfig().getClientUserId() != dialogId
+             /* DialogObject.isChatDialog(dialogId) &&*/
+@@ -224,6 +219,54 @@ public class TranslateController extends BaseController {
+         return isFeatureAvailable(dialogId) && translatingDialogs.get(dialogId, isChatAutoTranslated(dialogId));
+     }
+ 
++    // [mod] manual single-message bubble translation
++    private final HashMap<Long, HashSet<Integer>> manualTranslatedMessages = new HashMap<>();
++
++    public boolean isMessageManuallyTranslated(long dialogId, int messageId) {
++        HashSet<Integer> set = manualTranslatedMessages.get(dialogId);
++        return set != null && set.contains(messageId);
++    }
++
++    public boolean isMessageManuallyTranslated(MessageObject messageObject) {
++        return messageObject != null && messageObject.messageOwner != null && isMessageManuallyTranslated(messageObject.getDialogId(), messageObject.getId());
++    }
++
++    public void toggleManualMessageTranslation(MessageObject messageObject) {
++        if (messageObject == null || messageObject.messageOwner == null) {
++            return;
++        }
++        final long dialogId = messageObject.getDialogId();
++        HashSet<Integer> set = manualTranslatedMessages.get(dialogId);
++        if (set == null) {
++            manualTranslatedMessages.put(dialogId, set = new HashSet<>());
++        }
++        final int messageId = messageObject.getId();
++        if (set.contains(messageId) && messageObject.translated) {
++            set.remove(messageId);
++            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);
++            return;
++        }
++        set.add(messageId);
++        final String language = getDialogTranslateTo(dialogId);
++        final TLRPC.TL_textWithEntities existing = messageObject.messageOwner.voiceTranscriptionOpen ? messageObject.messageOwner.translatedVoiceTranscription : messageObject.messageOwner.translatedText;
++        if (existing != null && language.equals(messageObject.messageOwner.translatedToLanguage)) {
++            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, messageObject, false);
++            return;
++        }
++        NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslating, messageObject);
++        final MessageObject finalMessageObject = messageObject;
++        pushToTranslate(finalMessageObject, language, (isTranscription, id, text, lang) -> {
++            finalMessageObject.messageOwner.translatedToLanguage = lang;
++            if (isTranscription) {
++                finalMessageObject.messageOwner.translatedVoiceTranscription = text;
++            } else {
++                finalMessageObject.messageOwner.translatedText = text;
++            }
++            getMessagesStorage().updateMessageCustomParams(dialogId, finalMessageObject.messageOwner);
++            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageTranslated, finalMessageObject, false);
++        });
++    }
++
+     public void toggleTranslatingDialog(long dialogId) {
+         toggleTranslatingDialog(dialogId, !isTranslatingDialog(dialogId));
+     }
+diff --git a/TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java b/TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+index 0f79e448..c7efcb43 100644
+--- a/TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
++++ b/TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+@@ -24,8 +24,8 @@ import java.util.Arrays;
+ public class UserConfig extends BaseController {
+ 
+     public static int selectedAccount;
+-    public final static int MAX_ACCOUNT_DEFAULT_COUNT = 3;
+-    public final static int MAX_ACCOUNT_COUNT = 4;
++    public final static int MAX_ACCOUNT_DEFAULT_COUNT = 100;
++    public final static int MAX_ACCOUNT_COUNT = 100;
+ 
+     private final Object sync = new Object();
+     private volatile boolean configLoaded;
+@@ -98,6 +98,54 @@ public class UserConfig extends BaseController {
+         return localInstance;
+     }
+ 
++    public static int getAccountTagNumber(int account) {
++        if (account < 0 || account >= MAX_ACCOUNT_COUNT) {
++            return account + 1;
++        }
++        long myLogin = getInstance(account).loginTime;
++        int rank = 1;
++        for (int a = 0; a < MAX_ACCOUNT_COUNT; a++) {
++            if (a == account) {
++                continue;
++            }
++            if (!getInstance(a).isClientActivated()) {
++                continue;
++            }
++            long other = getInstance(a).loginTime;
++            if (other < myLogin || (other == myLogin && a < account)) {
++                rank++;
++            }
++        }
++        return rank;
++    }
++
++    // [mod] account label: "#N <local phone number>" for our own management UI.
++    // Uses Telegram's own PhoneFormat to find the country code prefix, so it
++    // works for any country; falls back to the display name without a phone.
++    public static String getAccountLabel(int account, String fallbackName) {
++        String label = fallbackName;
++        try {
++            TLRPC.User user = getInstance(account).getCurrentUser();
++            if (user != null && user.phone != null && user.phone.length() > 0) {
++                String formatted = org.telegram.PhoneFormat.PhoneFormat.getInstance().format("+" + user.phone);
++                if (formatted != null && formatted.length() > 0) {
++                    int space = formatted.indexOf(' ');
++                    String local = space > 0 ? formatted.substring(space + 1) : formatted;
++                    local = local.trim();
++                    if (local.startsWith("+")) {
++                        local = local.substring(1);
++                    }
++                    if (local.length() > 0) {
++                        label = local;
++                    }
++                }
++            }
++        } catch (Exception e) {
++            // keep the name if the phone cannot be formatted
++        }
++        return "#" + getAccountTagNumber(account) + " " + label;
++    }
++
+     public static int getActivatedAccountsCount() {
+         int count = 0;
+         for (int a = 0; a < MAX_ACCOUNT_COUNT; a++) {
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java b/TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java
+index a572c3b0..8f763a92 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/Cells/AccountSelectCell.java
+@@ -133,7 +133,7 @@ public class AccountSelectCell extends FrameLayout {
+         accountNumber = account;
+         TLRPC.User user = UserConfig.getInstance(accountNumber).getCurrentUser();
+         avatarDrawable.setInfo(account, user);
+-        textView.setText(ContactsController.formatName(user.first_name, user.last_name));
++        textView.setText(UserConfig.getAccountLabel(accountNumber, ContactsController.formatName(user.first_name, user.last_name))); // [mod] account phone label
+         imageView.getImageReceiver().setCurrentAccount(account);
+         imageView.setForUserOrChat(user, avatarDrawable);
+         checkImageView.setVisibility(check && account == UserConfig.selectedAccount ? VISIBLE : INVISIBLE);
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+index c4bb90c5..a15e4f95 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java
+@@ -9684,12 +9684,7 @@ public class ChatActivity extends BaseFragment implements
+         translateButton = new TranslateButton(getContext(), this, themeDelegate) {
+             @Override
+             protected void onButtonClick() {
+-                if (getUserConfig().isPremium() || currentChat != null && currentChat.autotranslation) {
+-                    getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId());
+-                } else {
+-                    MessagesController.getNotificationsSettings(currentAccount).edit().putInt("dialog_show_translate_count" + getDialogId(), 14).commit();
+-                    showDialog(new PremiumFeatureBottomSheet(ChatActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_TRANSLATIONS, false));
+-                }
++                getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId()); // [mod] translate for everyone
+                 updateTopPanel(true);
+             }
+ 
+@@ -28864,9 +28859,7 @@ public class ChatActivity extends BaseFragment implements
+ 
+         boolean showRestartTopic = !isInPreviewMode() && forumTopic != null && forumTopic.closed && !forumTopic.hidden && ChatObject.canManageTopic(currentAccount, currentChat, forumTopic);
+         boolean showTranslate = (
+-            getUserConfig().isPremium() || currentChat != null && currentChat.autotranslation ?
+-                getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) && !getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) :
+-                !getMessagesController().premiumFeaturesBlocked() && preferences.getInt("dialog_show_translate_count" + did, 5) <= 0
++            getMessagesController().getTranslateController().isDialogTranslatable(getDialogId()) && !getMessagesController().getTranslateController().isTranslateDialogHidden(getDialogId()) // [mod] translate bar for everyone
+         ) || DEBUG_TOP_PANELS;
+         boolean showAddProfilePicture = UserObject.isBot(currentUser) && currentUser.bot_can_edit && currentUser.photo == null;
+         boolean showBizBot = currentEncryptedChat == null && getUserConfig().isPremium() && preferences.getLong("dialog_botid" + did, 0) != 0 || DEBUG_TOP_PANELS;
+@@ -31563,7 +31556,16 @@ public class ChatActivity extends BaseFragment implements
+                         }
+                         processSelectedOption(options.get(i));
+                     });
+-                    if (option == OPTION_TRANSLATE) {
++                    if (option == OPTION_TRANSLATE && selectedObject != null && getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject)) { // [mod] undo bubble translation
++                        cell.setVisibility(View.VISIBLE);
++                        cell.setOnClickListener(e2 -> {
++                            if (selectedObject == null || i >= options.size()) {
++                                return;
++                            }
++                            getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);
++                            closeMenu();
++                        });
++                    } else if (option == OPTION_TRANSLATE) {
+                         final boolean translateEnabled = getMessagesController().getTranslateController().isContextTranslateEnabled();
+                         String toLangDefault = LocaleController.getInstance().getCurrentLocale().getLanguage();
+                         String toLang = TranslateAlert2.getToLanguage();
+@@ -31591,9 +31593,14 @@ public class ChatActivity extends BaseFragment implements
+ 
+                                 String toLangValue = fromLang != null && fromLang.equals(toLang) ? toLangDefault : toLang;
+                                 ArrayList<TLRPC.MessageEntity> entities = selectedObject != null && selectedObject.messageOwner != null ? selectedObject.messageOwner.entities : null;
++                                if (TranslateController.isTranslatable(selectedObject)) { // [mod] bubble translate
++                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);
++                                    closeMenu();
++                                } else {
+                                 TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, fromLang, toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));
+                                 alert.setDimBehind(false);
+                                 closeMenu(false);
++                                }
+                                 
+ //                                final TranslateAlert3 alert =
+ //                                    new TranslateAlert3(getContext(), resourceProvider)
+@@ -31649,9 +31656,14 @@ public class ChatActivity extends BaseFragment implements
+                                 }
+                                 String toLangValue = fromLang[0] != null && fromLang[0].equals(toLang) ? toLangDefault : toLang;
+                                 ArrayList<TLRPC.MessageEntity> entities = selectedObject != null && selectedObject.messageOwner != null ? selectedObject.messageOwner.entities : null;
++                                if (TranslateController.isTranslatable(selectedObject)) { // [mod] bubble translate
++                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);
++                                    closeMenu();
++                                } else {
+                                 TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, fromLang[0], toLangValue, finalMessageText, entities, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));
+                                 alert.setDimBehind(false);
+                                 closeMenu(false);
++                                }
+ 
+ //                                final TranslateAlert3 alert =
+ //                                    new TranslateAlert3(getContext(), resourceProvider)
+@@ -31683,9 +31695,14 @@ public class ChatActivity extends BaseFragment implements
+                                     return;
+                                 }
+ 
++                                if (TranslateController.isTranslatable(selectedObject)) { // [mod] bubble translate
++                                    getMessagesController().getTranslateController().toggleManualMessageTranslation(selectedObject);
++                                    closeMenu();
++                                } else {
+                                 TranslateAlert2 alert = TranslateAlert2.showAlert(getParentActivity(), this, currentAccount, inputPeer, messageIdToTranslate[0], selectedObject.summarized, "und", toLang, finalMessageText, null, noforwardsOrPaidMedia, onLinkPress, () -> dimBehindView(false));
+                                 alert.setDimBehind(false);
+                                 closeMenu(false);
++                                }
+ 
+ //                                final TranslateAlert3 alert = new TranslateAlert3(getContext(), getResourceProvider())
+ //                                    .setMessage(dialog_id, shouldTranslateByText ? 0 : messageIdToTranslate[0], selectedObject.summarized)
+@@ -45283,8 +45300,8 @@ public class ChatActivity extends BaseFragment implements
+                     options.add(OPTION_PIN);
+                     icons.add(R.drawable.msg_pin);
+                 }
+-                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {
+-                    items.add(LocaleController.getString(R.string.TranslateMessage));
++                if (selectedObject != null && selectedObject.contentType == 0 && (getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(groupedMessages, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) { // [mod] undo option
++                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label
+                     options.add(OPTION_TRANSLATE);
+                     icons.add(R.drawable.msg_translate);
+                 }
+@@ -45607,8 +45624,8 @@ public class ChatActivity extends BaseFragment implements
+                     options.add(OPTION_PIN);
+                     icons.add(R.drawable.msg_pin);
+                 }
+-                if (selectedObject != null && selectedObject.contentType == 0 && (!TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) {
+-                    items.add(LocaleController.getString(R.string.TranslateMessage));
++                if (selectedObject != null && selectedObject.contentType == 0 && (getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(selectedObject.getMessageTextToTranslate(selectedObjectGroup, null)) && !selectedObject.isAnimatedEmoji() && !selectedObject.isDice())) { // [mod] undo option
++                    items.add(LocaleController.getString(getMessagesController().getTranslateController().isMessageManuallyTranslated(selectedObject) && selectedObject.translated ? R.string.ShowOriginalButton : R.string.TranslateMessage)); // [mod] bubble translate label
+                     options.add(OPTION_TRANSLATE);
+                     icons.add(R.drawable.msg_translate);
+                 }
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateButton.java b/TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateButton.java
+index 32550fdc..51aa49dc 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateButton.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateButton.java
+@@ -114,7 +114,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
+         menuView.setImageResource(R.drawable.msg_mini_customize);
+         menuView.setOnClickListener(e -> {
+             final TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialogId);
+-            if (UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation) {
++            if (true) { // [mod] translate settings menu for everyone
+                 onMenuClick();
+             } else {
+                 onCloseClick();
+@@ -297,7 +297,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
+             popupLayout.getSwipeBack().openForeground(swipeBackIndex);
+         });
+ 
+-        if (UserConfig.getInstance(currentAccount).isPremium() && detectedLanguageNameAccusative != null) {
++        if (detectedLanguageNameAccusative != null) { // [mod] no premium
+             final ActionBarMenuSubItem dontTranslateButton = new ActionBarMenuSubItem(getContext(), false, false, resourcesProvider);
+             String text;
+             if (accusative[0]) {
+@@ -412,7 +412,7 @@ public class TranslateButton extends FrameLayout implements Theme.Colorable {
+             }
+             textView.setText(TextUtils.concat(translateIcon, " ", text));
+         }
+-        menuView.setImageResource(UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation ? R.drawable.msg_mini_customize : R.drawable.msg_close);
++        menuView.setImageResource(R.drawable.msg_mini_customize); // [mod] translate settings menu for everyone
+     }
+ 
+     public static void showCocoonAlert(Context context, Theme.ResourcesProvider resourcesProvider) {
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
+index 74fc75ab..3b396108 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
+@@ -14014,7 +14014,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
+         final TextView textView = new TextView(getContext());
+         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+         textView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+-        textView.setText(UserObject.getUserName(user));
++        textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label
+         textView.setMaxLines(2);
+         textView.setEllipsize(TextUtils.TruncateAt.END);
+         btn.addView(textView, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, Gravity.CENTER_VERTICAL, 13, 0, 14, 0));
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java
+index 69060ceb..f5b3fe4a 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.java
+@@ -603,7 +603,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
+         final TextView textView = new TextView(getContext());
+         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+         textView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+-        textView.setText(UserObject.getUserName(user));
++        textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label
+         textView.setMaxLines(2);
+         textView.setEllipsize(TextUtils.TruncateAt.END);
+         btn.addView(textView, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, Gravity.CENTER_VERTICAL, 13, 0, 14, 0));
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java
+index 31128a6a..ec097e03 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java
+@@ -11256,6 +11256,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
+             }
+ 
+             CharSequence newString = UserObject.getUserName(user);
++            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)
+             String newString2;
+             boolean hiddenStatusButton = false;
+             if (user.id == getUserConfig().getClientUserId()) {
+diff --git a/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java b/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java
+index 507bfddf..99a74899 100644
+--- a/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java
++++ b/TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java
+@@ -531,7 +531,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
+ 
+         avatarDrawable.setInfo(user);
+         avatarView.setForUserOrChat(user, avatarDrawable);
+-        titleView.setText(UserObject.getUserName(user));
++        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)
+         final StringBuilder sb = new StringBuilder();
+         if (user != null) {
+             sb.append(PhoneFormat.getInstance().format("+" + user.phone));
+@@ -1046,7 +1046,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
+             avatarDrawable.setInfo(account, user);
+             avatarView.getImageReceiver().setCurrentAccount(account);
+             avatarView.setForUserOrChat(user, avatarDrawable);
+-            textView.setText(UserObject.getUserName(user));
++            textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label (settings accounts list)
+ 
+             botDrawable.setCurrentAccount(account);
+             emojiStatusDrawable.setCurrentAccount(account);
+diff --git a/TMessagesProj/src/main/res/values/strings.xml b/TMessagesProj/src/main/res/values/strings.xml
+index b4b6b540..a9f6b21d 100644
+--- a/TMessagesProj/src/main/res/values/strings.xml
++++ b/TMessagesProj/src/main/res/values/strings.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-    <string name="AppName">Telegram</string>
+-    <string name="AppNameBeta">Telegram Beta</string>
++    <string name="AppName">YasTel</string>
++    <string name="AppNameBeta">YasTel</string>
+     <string name="LanguageName">English</string>
+     <string name="English">English</string>
+     <string name="LanguageNameInEnglish">English</string>
+diff --git a/TMessagesProj_App/build.gradle b/TMessagesProj_App/build.gradle
+index 2aa197cb..2de826e3 100644
+--- a/TMessagesProj_App/build.gradle
++++ b/TMessagesProj_App/build.gradle
+@@ -62,7 +62,7 @@ android {
+             debuggable true
+             jniDebuggable true
+             signingConfig signingConfigs.debug
+-            applicationIdSuffix ".beta"
++            // applicationIdSuffix ".beta" // [mod] YasTel: use official package to install over official Telegram
+             minifyEnabled false
+             shrinkResources false
+             multiDexEnabled true
