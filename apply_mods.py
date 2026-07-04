@@ -775,6 +775,29 @@ def main():
                      "                    } else if (option == OPTION_TRANSLATE) {",
                      "bubble: undo click branch")
 
+    if cfg.get("rebrand", True):
+        app_name = cfg.get("app_name", "YasTel")
+        print("8) Rebrand: app name -> %s, package -> official Telegram" % app_name)
+        strings = "TMessagesProj/src/main/res/values/strings.xml"
+        # The afat-debug build shows AppNameBeta as the launcher label, so set
+        # both AppName and AppNameBeta to keep the name right in every variant.
+        replace_once(strings,
+                     "<string name=\"AppName\">Telegram</string>",
+                     "<string name=\"AppName\">%s</string>" % app_name,
+                     "rebrand: AppName")
+        replace_once(strings,
+                     "<string name=\"AppNameBeta\">Telegram Beta</string>",
+                     "<string name=\"AppNameBeta\">%s</string>" % app_name,
+                     "rebrand: AppNameBeta")
+        # Drop the ".beta" suffix on the debug build type. APP_PACKAGE is already
+        # org.telegram.messenger, so the afat-debug package becomes the official
+        # one -> installs over / replaces the official Telegram (uninstall the
+        # official app first; signatures differ).
+        replace_once("TMessagesProj_App/build.gradle",
+                     "            applicationIdSuffix \".beta\"",
+                     "            // applicationIdSuffix \".beta\" // [mod] YasTel: use official package to install over official Telegram",
+                     "rebrand: official package")
+
     print("\n=== All modifications applied successfully ===")
     print("Now open the Telegram folder in Android Studio and Build.")
 

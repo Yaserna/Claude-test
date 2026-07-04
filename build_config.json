@@ -4,7 +4,8 @@
   "upstream_commit": "9b50143d8896d255d03155598937e4f3e28afd86",
   "upstream_version": "12.8.1 (6916)",
 
-  "app_name": "TODO-SET-YOUR-APP-NAME",
+  "app_name": "YasTel",
+  "rebrand": true,
 
   "account_limit": 100,
   "enable_chat_translate_for_all": true,
