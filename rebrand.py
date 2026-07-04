@@ -38,6 +38,13 @@ applied = 0
 skipped = 0
 warnings = []
 
+# Backups are stored in this folder at the project root -- NEVER next to the
+# original file, because a backup dropped inside res/values (e.g.
+# strings.xml.bak7) makes the Android resource merger fail with
+# "The file name must end with .xml".
+PROJECT_ROOT = None
+BACKUP_DIR = "_yastel_backups"
+
 
 def find_project_root():
     probe = os.path.join("TMessagesProj", "src", "main", "res", "values", "strings.xml")
@@ -63,12 +70,41 @@ def read(path):
         return f.read()
 
 
+def backup_path_for(path):
+    root = PROJECT_ROOT or os.path.dirname(os.path.abspath(path))
+    rel = os.path.relpath(os.path.abspath(path), root)
+    flat = rel.replace(os.sep, "__").replace("/", "__")
+    d = os.path.join(root, BACKUP_DIR)
+    if not os.path.isdir(d):
+        os.makedirs(d)
+    return os.path.join(d, flat + ".bak7")
+
+
 def write(path, text):
-    if not os.path.isfile(path + ".bak7"):
-        with open(path + ".bak7", "w", encoding="utf-8") as f:
+    bak = backup_path_for(path)
+    if not os.path.isfile(bak):
+        with open(bak, "w", encoding="utf-8") as f:
             f.write(read(path))
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+
+
+def cleanup_bad_res_backups(root):
+    """Remove any backup file left inside the res tree by an older version of
+    this script; the resource merger rejects non-.xml files under res/."""
+    res = os.path.join(root, "TMessagesProj", "src", "main", "res")
+    removed = []
+    if os.path.isdir(res):
+        for dirpath, dirs, files in os.walk(res):
+            for fn in files:
+                if ".bak" in fn:
+                    p = os.path.join(dirpath, fn)
+                    try:
+                        os.remove(p)
+                        removed.append(os.path.relpath(p, root))
+                    except OSError:
+                        pass
+    return removed
 
 
 def find_strings_files(root):
@@ -139,14 +175,24 @@ def patch_package(root):
 
 
 def main():
+    global PROJECT_ROOT
     print("=== rebrand: locate project ===")
     root = find_project_root()
     if root is None:
         sys.exit("ERROR: Telegram source not found. Put this script next to (or "
                  "inside) the folder that contains TMessagesProj and run again.")
+    PROJECT_ROOT = root
     print("Project root: %s\n" % root)
 
-    print("1) App name -> %s" % APP_NAME)
+    print("0) Clean stray backup files inside res/ (they break the build)")
+    removed = cleanup_bad_res_backups(root)
+    if removed:
+        for r in removed:
+            print("  removed %s" % r)
+    else:
+        print("  none found")
+
+    print("\n1) App name -> %s" % APP_NAME)
     patch_app_name(root)
 
     print("\n2) Package -> official Telegram (org.telegram.messenger)")
