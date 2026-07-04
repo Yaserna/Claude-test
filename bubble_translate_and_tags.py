@@ -265,21 +265,32 @@ def main():
     # A) Account number tag in more places
     # ------------------------------------------------------------------
     print("\nA) Account number tag in more places")
-    patch(root, "ProfileActivity",
-          "            CharSequence newString = UserObject.getUserName(user);\n"
-          "            String newString2;",
-          "            CharSequence newString = UserObject.getUserName(user);\n"
-          "            if (user.id == getUserConfig().getClientUserId()) { newString = \"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + newString; } // [mod] account number tag (own profile)\n"
-          "            String newString2;",
-          "tag: own profile header")
-    patch(root, "SettingsActivity",
-          "        titleView.setText(UserObject.getUserName(user));",
-          "        titleView.setText(\"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings header)",
-          "tag: settings header")
-    patch(root, "SettingsActivity",
-          "            textView.setText(UserObject.getUserName(user));",
-          "            textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)",
-          "tag: settings accounts list")
+    # Skipped when the phone_labels script has already converted the same
+    # display sites to "#N <phone>" labels (they supersede the plain tags).
+    if not contains(root, "ProfileActivity", "getAccountLabel(currentAccount"):
+        patch(root, "ProfileActivity",
+              "            CharSequence newString = UserObject.getUserName(user);\n"
+              "            String newString2;",
+              "            CharSequence newString = UserObject.getUserName(user);\n"
+              "            if (user.id == getUserConfig().getClientUserId()) { newString = \"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + newString; } // [mod] account number tag (own profile)\n"
+              "            String newString2;",
+              "tag: own profile header")
+    else:
+        print("  -- [tag: own profile header] superseded by phone label, skipped")
+    if not contains(root, "SettingsActivity", "titleView.setText(UserConfig.getAccountLabel(currentAccount"):
+        patch(root, "SettingsActivity",
+              "        titleView.setText(UserObject.getUserName(user));",
+              "        titleView.setText(\"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings header)",
+              "tag: settings header")
+    else:
+        print("  -- [tag: settings header] superseded by phone label, skipped")
+    if not contains(root, "SettingsActivity", "textView.setText(UserConfig.getAccountLabel(account"):
+        patch(root, "SettingsActivity",
+              "            textView.setText(UserObject.getUserName(user));",
+              "            textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)",
+              "tag: settings accounts list")
+    else:
+        print("  -- [tag: settings accounts list] superseded by phone label, skipped")
 
     # ------------------------------------------------------------------
     # B) Translate bar at the top of every chat/group

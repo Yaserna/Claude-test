@@ -282,6 +282,15 @@ public boolean isFeatureAvailable(long dialogId) {
   ChatActivity با toggle (با fallback به پنجره برای پیام‌های غیرقابل‌ترجمه مثل پیامِ خودِ کاربر)
   + برچسبِ منو «Show Original» وقتی پیام دستی ترجمه شده. بکاپ: `.bak5`. فقط جاوا → بیلدِ عادی.
 
+- `phone_labels.py/.bat` — **آخرین**: نمایشِ حساب‌ها با «#N شماره‌ی محلی» (بدونِ کدِ کشور) به‌جای
+  نام، فقط در UIِ مدیریتیِ خودمان: سوییچرِ آواتار (MainTabsActivity)، منوی کشویی (DialogsActivity)،
+  Send-as (AccountSelectCell)، پروفایلِ خود (ProfileActivity)، هدرِ تنظیمات و لیستِ اکانت‌های
+  تنظیمات (SettingsActivity). helperِ `UserConfig.getAccountLabel(account, fallbackName)` با
+  `PhoneFormat` کدِ کشور را جدا می‌کند (اولین توکنِ فرمت‌شده)؛ بدونِ شماره → همان نام.
+  چت/گروه دست‌نخورده. هر پچ دو-حالته است (سورسِ تگ‌دار یا خام). بکاپ: `.bak6`. فقط جاوا.
+  (در apply_mods بخشِ 5.7 + کلیدِ `account_phone_labels`؛ پچ‌های تگِ بخشِ 5/5.5 با
+  `file_contains` گارد شدند تا rerun بعد از phone-label دوباره درج نکند.)
+
 ### الگوی امنِ replace_once (در همه‌ی اسکریپت‌ها)
 اول چک می‌کند متنِ **جدید** موجود است (→ skip، برای idempotency)، بعد شمارشِ متنِ **قدیم**؛
 اگر ۰ بار → WARNING (نه توقف)، اگر >۱ بار → WARNING. این باعث می‌شود روی سورسِ نیمه‌پچ‌شده هم امن باشد.

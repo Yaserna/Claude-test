@@ -11,6 +11,7 @@
   "translate_button_default_on": true,
   "nekogram_style_translation": true,
   "account_number_tags": true,
+  "account_phone_labels": true,
   "translate_bar_for_all": true,
   "bubble_translate": true
 }

@@ -401,22 +401,36 @@ def main():
     )
     if cfg.get("account_number_tags", True):
         print("5) Number tag for accounts (login order)")
-        replace_once(uc,
-                     "    public static int getActivatedAccountsCount() {",
-                     tag_helper + "\n    public static int getActivatedAccountsCount() {",
-                     "account-tag: login-order helper")
-        replace_once(mta,
-                     "textView.setText(UserObject.getUserName(user));",
-                     "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
-                     "account-tag: main switcher list")
-        replace_once(asc,
-                     "textView.setText(ContactsController.formatName(user.first_name, user.last_name));",
-                     "textView.setText(\"#\" + UserConfig.getAccountTagNumber(accountNumber) + \" \" + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag",
-                     "account-tag: account select cell")
-        replace_once(da,
-                     "textView.setText(UserObject.getUserName(user));",
-                     "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
-                     "account-tag: dialogs drawer switcher")
+        # Each patch is skipped once the 5.7 phone-label patch has replaced the
+        # same display site (rerun on an already fully patched source).
+        if not file_contains(uc, "getAccountTagNumber("):
+            replace_once(uc,
+                         "    public static int getActivatedAccountsCount() {",
+                         tag_helper + "\n    public static int getActivatedAccountsCount() {",
+                         "account-tag: login-order helper")
+        else:
+            print("  - [account-tag: login-order helper] already applied, skipped.")
+        if not file_contains(mta, "getAccountLabel("):
+            replace_once(mta,
+                         "textView.setText(UserObject.getUserName(user));",
+                         "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
+                         "account-tag: main switcher list")
+        else:
+            print("  - [account-tag: main switcher list] superseded by phone label, skipped.")
+        if not file_contains(asc, "getAccountLabel("):
+            replace_once(asc,
+                         "textView.setText(ContactsController.formatName(user.first_name, user.last_name));",
+                         "textView.setText(\"#\" + UserConfig.getAccountTagNumber(accountNumber) + \" \" + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag",
+                         "account-tag: account select cell")
+        else:
+            print("  - [account-tag: account select cell] superseded by phone label, skipped.")
+        if not file_contains(da, "getAccountLabel("):
+            replace_once(da,
+                         "textView.setText(UserObject.getUserName(user));",
+                         "textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag",
+                         "account-tag: dialogs drawer switcher")
+        else:
+            print("  - [account-tag: dialogs drawer switcher] superseded by phone label, skipped.")
 
     # ------------------------------------------------------------------
     # 5.5) Number tag in MORE places: own profile header, Settings header,
@@ -426,21 +440,98 @@ def main():
     sa = "TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java"
     if cfg.get("account_number_tags", True):
         print("5.5) Number tag in profile/settings")
+        if not file_contains(pa, "getAccountLabel(currentAccount"):
+            replace_once(pa,
+                         "            CharSequence newString = UserObject.getUserName(user);\n"
+                         "            String newString2;",
+                         "            CharSequence newString = UserObject.getUserName(user);\n"
+                         "            if (user.id == getUserConfig().getClientUserId()) { newString = \"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + newString; } // [mod] account number tag (own profile)\n"
+                         "            String newString2;",
+                         "account-tag: own profile header")
+        else:
+            print("  - [account-tag: own profile header] superseded by phone label, skipped.")
+        if not file_contains(sa, "titleView.setText(UserConfig.getAccountLabel(currentAccount"):
+            replace_once(sa,
+                         "        titleView.setText(UserObject.getUserName(user));",
+                         "        titleView.setText(\"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings header)",
+                         "account-tag: settings header")
+        else:
+            print("  - [account-tag: settings header] superseded by phone label, skipped.")
+        if not file_contains(sa, "textView.setText(UserConfig.getAccountLabel(account"):
+            replace_once(sa,
+                         "            textView.setText(UserObject.getUserName(user));",
+                         "            textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)",
+                         "account-tag: settings accounts list")
+        else:
+            print("  - [account-tag: settings accounts list] superseded by phone label, skipped.")
+
+    # ------------------------------------------------------------------
+    # 5.7) Account label = "#N <local phone number>" in our management UI
+    #      (switcher, drawer, send-as, own profile, settings). Uses Telegram's
+    #      own PhoneFormat to strip the country code, name stays as fallback.
+    #      Chats/groups keep showing the real name.
+    # ------------------------------------------------------------------
+    phone_helper = (
+        "    // [mod] account label: \"#N <local phone number>\" for our own management UI.\n"
+        "    // Uses Telegram's own PhoneFormat to find the country code prefix, so it\n"
+        "    // works for any country; falls back to the display name without a phone.\n"
+        "    public static String getAccountLabel(int account, String fallbackName) {\n"
+        "        String label = fallbackName;\n"
+        "        try {\n"
+        "            TLRPC.User user = getInstance(account).getCurrentUser();\n"
+        "            if (user != null && user.phone != null && user.phone.length() > 0) {\n"
+        "                String formatted = org.telegram.PhoneFormat.PhoneFormat.getInstance().format(\"+\" + user.phone);\n"
+        "                if (formatted != null && formatted.length() > 0) {\n"
+        "                    int space = formatted.indexOf(' ');\n"
+        "                    String local = space > 0 ? formatted.substring(space + 1) : formatted;\n"
+        "                    local = local.trim();\n"
+        "                    if (local.startsWith(\"+\")) {\n"
+        "                        local = local.substring(1);\n"
+        "                    }\n"
+        "                    if (local.length() > 0) {\n"
+        "                        label = local;\n"
+        "                    }\n"
+        "                }\n"
+        "            }\n"
+        "        } catch (Exception e) {\n"
+        "            // keep the name if the phone cannot be formatted\n"
+        "        }\n"
+        "        return \"#\" + getAccountTagNumber(account) + \" \" + label;\n"
+        "    }\n"
+    )
+    if cfg.get("account_phone_labels", True):
+        print("5.7) Account labels -> local phone number in management UI")
+        if not file_contains(uc, "getAccountLabel("):
+            replace_once(uc,
+                         "    public static int getActivatedAccountsCount() {",
+                         phone_helper + "\n    public static int getActivatedAccountsCount() {",
+                         "phone-label: helper in UserConfig")
+        else:
+            print("  - [phone-label: helper in UserConfig] already applied, skipped.")
+        replace_once(mta,
+                     'textView.setText("#" + UserConfig.getAccountTagNumber(account) + " " + UserObject.getUserName(user)); // [mod] account number tag',
+                     'textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label',
+                     "phone-label: main switcher list")
+        replace_once(da,
+                     'textView.setText("#" + UserConfig.getAccountTagNumber(account) + " " + UserObject.getUserName(user)); // [mod] account number tag',
+                     'textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label',
+                     "phone-label: dialogs drawer switcher")
+        replace_once(asc,
+                     'textView.setText("#" + UserConfig.getAccountTagNumber(accountNumber) + " " + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag',
+                     'textView.setText(UserConfig.getAccountLabel(accountNumber, ContactsController.formatName(user.first_name, user.last_name))); // [mod] account phone label',
+                     "phone-label: send-as account select")
         replace_once(pa,
-                     "            CharSequence newString = UserObject.getUserName(user);\n"
-                     "            String newString2;",
-                     "            CharSequence newString = UserObject.getUserName(user);\n"
-                     "            if (user.id == getUserConfig().getClientUserId()) { newString = \"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + newString; } // [mod] account number tag (own profile)\n"
-                     "            String newString2;",
-                     "account-tag: own profile header")
+                     '            if (user.id == getUserConfig().getClientUserId()) { newString = "#" + UserConfig.getAccountTagNumber(currentAccount) + " " + newString; } // [mod] account number tag (own profile)',
+                     '            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)',
+                     "phone-label: own profile header")
         replace_once(sa,
-                     "        titleView.setText(UserObject.getUserName(user));",
-                     "        titleView.setText(\"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings header)",
-                     "account-tag: settings header")
+                     '        titleView.setText("#" + UserConfig.getAccountTagNumber(currentAccount) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings header)',
+                     '        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)',
+                     "phone-label: settings header")
         replace_once(sa,
-                     "            textView.setText(UserObject.getUserName(user));",
-                     "            textView.setText(\"#\" + UserConfig.getAccountTagNumber(account) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)",
-                     "account-tag: settings accounts list")
+                     '            textView.setText("#" + UserConfig.getAccountTagNumber(account) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)',
+                     '            textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label (settings accounts list)',
+                     "phone-label: settings accounts list")
 
     # ------------------------------------------------------------------
     # 6) Translate bar at the top of EVERY chat/group.
