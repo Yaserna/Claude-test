@@ -2,30 +2,32 @@
 
 > این فایل کلِ زمینه، پیشرفت‌ها، قوانین و راه‌حل‌های پروژه را با ریزترین جزئیات نگه می‌دارد.
 > برای بارگذاری در بخش **Projects** کلاد ساخته شده تا هر گفتگوی جدید کاملاً در جریان باشد.
-> آخرین به‌روزرسانی: بعد از رفعِ باگِ تگِ معکوس و باز کردنِ ترجمه‌ی کلِ چت/گروه + inline + به‌خاطرسپاری.
+> آخرین به‌روزرسانی: بعد از رفعِ فریزِ چت + گزینه‌ی «Show Original» + برچسبِ شماره‌تلفنِ اکانت‌ها
+> (اسکریپت‌های `bubble_translate_and_tags` نسخه‌ی ۳ و `phone_labels`).
 
 ---
 
 ## ۱) هدف پروژه
 ساخت یک اپ اندرویدیِ **دقیقاً مثل تلگرام رسمی** ولی با چند قابلیتِ اختصاصی:
-1. **لاگین نامحدود اکانت** (حداقل ۱۰۰) بدون کرش — مثل نکوگرامِ قدیمی.
-2. **ترجمه‌ی پیام‌ها** (تک‌پیام + کلِ گروه/کانال) با موتورِ گوگل، بدونِ Premium.
-3. یک **دکمه‌ی ترجمه‌ی کلِ گروه** در بالای صفحه (هنوز مانده).
-4. مکالمه‌های **ترکیبیِ فارسی/انگلیسی (bidi/RTL-LTR)** موقع ترجمه نباید به‌هم بریزد (هنوز مانده).
-5. **شماره‌گذاریِ اکانت‌ها** به ترتیبِ لاگین تا بشود اکانتِ بیستم را شناخت.
-6. احتمال افزودنِ شخصی‌سازیِ بیشتر در آینده (ری‌برندینگ).
+1. ✅ **لاگین نامحدود اکانت** (حداقل ۱۰۰) بدون کرش — مثل نکوگرامِ قدیمی.
+2. ✅ **ترجمه‌ی پیام‌ها** (تک‌پیام داخلِ حباب + کلِ گروه/کانال) با موتورِ گوگل، بدونِ Premium.
+3. ✅ **نوار/دکمه‌ی ترجمه‌ی کلِ گروه** بالای صفحه (حالا در همه‌ی چت‌ها می‌آید).
+4. ⏳ مکالمه‌های **ترکیبیِ فارسی/انگلیسی (bidi/RTL-LTR)** موقع ترجمه نباید به‌هم بریزد (هنوز مانده).
+5. ✅ **شماره‌گذاریِ اکانت‌ها** به ترتیبِ لاگین + نمایش با **شماره‌تلفنِ محلی** در UIِ مدیریتی.
+6. احتمال افزودنِ شخصی‌سازیِ بیشتر در آینده (ری‌برندینگ — هنوز مانده).
 
 ## ۲) پروفایل کاربر و قوانینِ کار (بسیار مهم)
 - کاربر **دانشِ برنامه‌نویسی ندارد** → همه‌ی تغییرات باید به‌صورتِ **اسکریپتِ آماده** داده شود
   (فایلِ `.py` + یک `.bat` که با دابل‌کلیک اجرا شود).
-- **قانونِ اجباری (جدید):** داخلِ اسکریپت‌ها **هیچ حرف/کلمه‌ی فارسی یا کاراکترِ غیرASCII** نباشد.
+- **قانونِ اجباری:** داخلِ اسکریپت‌ها **هیچ حرف/کلمه‌ی فارسی یا کاراکترِ غیرASCII** نباشد.
   علت: `cmd.exe` ویندوز متنِ فارسیِ داخلِ `.bat` را به‌عنوان دستور تفسیر می‌کند و خطای
   «'...' is not recognized as an internal or external command» می‌دهد. همه‌ی پیام‌ها و
   کامنت‌ها باید انگلیسی باشند. فایل‌های `.bat` باید **CRLF** و شاملِ `chcp 65001 >nul` باشند.
 - توضیحاتِ کلاد به کاربر: **خیلی کوتاه** و به **فارسی** (اما نه داخلِ اسکریپت).
-- کاربر در **ایران** است → لینک‌های `raw.githubusercontent.com` فیلترند؛ محتوای اسکریپت
-  باید کاملِ متن باشد یا فایل مستقیم برایش فرستاده شود، نه لینکِ دانلود.
-- برای اتصال نیاز به **VPN/پروکسی MTProto** دارد (اتصال مستقیم فیلتر است).
+- کاربر در **ایران** است → لینک‌های `raw.githubusercontent.com` فیلترند؛ فایل را **مستقیم بفرست**
+  (SendUserFile)، نه لینکِ دانلود.
+- برای اتصال نیاز به **VPN/پروکسی MTProto** دارد (اتصال مستقیم فیلتر است). سرویس‌های گوگل
+  (Firebase/ML Kit) روی گوشی‌اش بلاک‌اند — این روی قابلیت‌ها اثرِ واقعی داشت (بخش ۶، باگ ۱۱).
 - بیلد روی سیستمِ خودِ کاربر (ویندوز) با Android Studio؛ لاگ‌ها از Logcat می‌آیند.
 - **نکردنی‌ها:** گشتن دنبالِ توکن/کلید در لاگ‌ها یا env؛ دستکاریِ دستیِ credentialهای گیت.
 
@@ -43,9 +45,15 @@
 - ریپو: `yaserna/yaser-d.z`
 - **برنچِ کاریِ فعلی:** `claude/telegram-app-continuation-lvgts5`
   (ادامه‌ی برنچِ قدیمی‌ترِ `Telegram-App`؛ همه‌ی کارها اینجا commit/push می‌شود).
+- **دستورِ صریحِ کاربر: دقیقاً روی همین شاخه ادامه بده و شاخه‌ی جدید نساز** (حتی اگر محیطِ
+  اجرا شاخه‌ی دیگری پیشنهاد بدهد).
 - پوش از طریقِ گیتِ محلی. کامیت‌ها ممکن است «Unverified» باشند (بدونِ GPG) — بی‌ضرر.
 - **مهم:** کاربر معمولاً `apply_mods.py` (بیلدِ کامل) را اجرا نمی‌کند؛ روی سورسِ محلیِ
   از قبل موجودش، **اسکریپت‌های مستقلِ تک‌منظوره** را اجرا می‌کند که برایش می‌فرستیم.
+- آخرین کامیت‌های شاخه (از قدیم به جدید):
+  `12c510c` (PROJECT_CONTEXT اولیه) → `2956885` (bubble/bar/tags v1) →
+  `0b64f37` (فیکس repaint/retry v2) → `511f20d` (فیکس فریز + undo v3) →
+  `699992b` (برچسبِ شماره‌تلفن phone_labels).
 
 ---
 
@@ -62,7 +70,7 @@ Gradle موقعِ بیلد از سورس‌ها **کپی** می‌سازد در 
 گاهی «Rebuild» کدِ C++ را دوباره کامپایل نمی‌کند (از کش می‌خواند). نشانه: Rebuild چند ثانیه‌ای تمام می‌شود.
 **راه‌حل:** پوشه‌های `TMessagesProj/.cxx` و `TMessagesProj/build` پاک شوند تا از صفر کامپایل شود
 (باید چند دقیقه طول بکشد). بعد از تغییرِ نیتیو **حتماً** این کار + Uninstall کامل لازم است.
-تغییراتِ **فقط جاوا** این نیاز را ندارند (بیلدِ عادی کافی است).
+تغییراتِ **فقط جاوا** این نیاز را ندارند (بیلدِ عادی کافی است) — همه‌ی کارهای این جلسه فقط جاوا بود.
 
 ### ج) گرفتنِ backtrace نیتیو (طلا)
 کرش‌های نیتیو (SIGSEGV/SIGABRT) خطِ `Fatal signal` را نشان می‌دهند ولی backtrace را پروسه‌ی
@@ -74,12 +82,19 @@ Gradle موقعِ بیلد از سورس‌ها **کپی** می‌سازد در 
 - `Firebase 403 / API_KEY_ANDROID_APP_BLOCKED / Failed to get regid` = پوشِ گوگل بلاک، بی‌ضرر.
 - `libEGL no current context`, `libmigui.so`, `MiuiNotification`, `Slow Binder` = هشدارهای شیائومی، بی‌ضرر.
 - اتصالِ کند / `TLS hash mismatch` / `unable to decrypt` = فیلترینگ؛ نیازمندِ VPN/پروکسی.
+- **بلاک‌بودنِ گوگل فقط «نویزِ لاگ» نیست:** تشخیصِ زبانِ ML Kit هم کار نمی‌کند → ریشه‌ی باگ ۱۱.
 
-### ه) نکته‌ی کلیدیِ اسلاتِ اکانت (تازه کشف شد)
-اسلات‌های اکانت **ترتیبی نیستند**. تلگرام هنگامِ «افزودن اکانت» اسلاتِ خالی را از **بالای**
-آرایه پیدا می‌کند (`for (int a = MAX_ACCOUNT_COUNT - 1; a >= 0; a--)`)، پس با MAX=100 اکانت‌ها
-در اسلاتِ `0, 99, 98, 97, ...` می‌نشینند. برای همین شماره‌گذاری بر اساسِ «شماره‌ی اسلات + ۱»
-خروجیِ `1, 100, 99, 98` می‌داد. شماره‌گذاریِ درست باید بر اساسِ **زمانِ لاگین** باشد.
+### ه) اسلاتِ اکانت ترتیبی نیست
+تلگرام هنگامِ «افزودن اکانت» اسلاتِ خالی را از **بالای** آرایه پیدا می‌کند
+(`for (int a = MAX_ACCOUNT_COUNT - 1; a >= 0; a--)`)، پس با MAX=100 اکانت‌ها در اسلاتِ
+`0, 99, 98, 97, ...` می‌نشینند. شماره‌گذاریِ درست بر اساسِ **loginTime** است (بخش ۷).
+
+### و) semantics مهمِ ChatActivity: منو و scrim
+منوی لمسِ طولانیِ پیام یک لایه‌ی تاریک (scrim/dim) پشتِ خودش می‌گذارد.
+`closeMenu()` = بستنِ منو + برداشتنِ scrim؛ `closeMenu(false)` = بستنِ منو ولی **نگه‌داشتنِ scrim**
+(برای وقتی که قرار است پنجره‌ای مثل TranslateAlert2 رویش باز شود و موقعِ بسته‌شدن خودش
+`dimBehindView(false)` را صدا بزند). اگر پنجره حذف شود ولی `closeMenu(false)` بماند → چت فریز
+به‌نظر می‌رسد (باگ ۱۴).
 
 ---
 
@@ -126,38 +141,71 @@ Gradle موقعِ بیلد از سورس‌ها **کپی** می‌سازد در 
 
 6. **کرشِ نیتیو `processRequestQueue` null-deref** (SIGSEGV، fault addr نزدیک صفر مثل `0x32`؛
    backtrace: processRequestQueue → select → ThreadProc):
-   علت: دو `getConnectionByType` در `ConnectionsManager.cpp` (خطوطِ ~۲۵۶۹ و ~۲۸۲۰) وقتی auth key
-   موقتاً هنگامِ handshakeِ اکانتِ جدید null است، `nullptr` برمی‌گردانند و کد بدونِ چک به
-   `connection->getConnectionToken()` دسترسی می‌داد. فیکس: بعد از هر دو، چکِ null:
-   ```cpp
-   if (connection == nullptr) { iter++; continue; }
-   ```
-   **این همان کرشی بود که کاربر در `tele_log.txt` فرستاد** — و چون بیلد از کشِ قدیمیِ C++ ساخته
-   شده بود، فیکس در آن بیلد نبود؛ با پاک‌کردنِ `.cxx`/`build` حل شد.
+   علت: دو `getConnectionByType` در `ConnectionsManager.cpp` وقتی auth key موقتاً هنگامِ
+   handshakeِ اکانتِ جدید null است، `nullptr` برمی‌گردانند. فیکس بعد از هر دو:
+   `if (connection == nullptr) { iter++; continue; }`
+   (این همان کرشِ `tele_log.txt` بود؛ بیلدِ کش‌خورده‌ی C++ هم قصه‌اش در ۵-ب.)
 
-7. **باگِ جای‌گذاریِ گاردِ lazy-init (کشفِ مهم):** گاردِ حلقه‌ی اصلی باید **بعد** از
-   `UserConfig.getInstance(a).loadConfig();` باشد، نه قبلش. چون `isClientActivated()` فقط بعد از
-   `loadConfig()` معتبر است؛ اگر گارد قبل باشد، اکانت‌های ۲+ بعد از هر ری‌استارتِ اپ **برای
-   همیشه غیب می‌شوند**. همچنین گاردِ حلقه‌ی شبکه، تورفتگیِ اشتباهی داشت که باعث می‌شد اصلاً اعمال نشود.
+7. **جای‌گذاریِ گاردِ lazy-init:** گاردِ حلقه‌ی اصلی باید **بعد** از
+   `UserConfig.getInstance(a).loadConfig();` باشد (isClientActivated فقط بعد از loadConfig معتبر
+   است)، وگرنه اکانت‌های ۲+ بعد از هر ری‌استارت برای همیشه غیب می‌شوند.
 
-8. **گاردِ طوفانِ storage:** یک نقطه‌ی مطمئن `LocationController.getLocationsCount` گارد شد
-   (چکِ `isClientActivated` قبل از `getInstance`). اگر کرشِ مشابه با backtrace در فایلِ دیگری
-   دیده شد، همین الگو آنجا هم اضافه شود. (گاردِ گسترده‌ی `guardall/fixguard/uirevert` از جلسه‌ی
-   اول عمداً بازتولید نشد چون بدونِ backtraceِ واقعی ریسک دارد.)
+8. **گاردِ طوفانِ storage:** `LocationController.getLocationsCount` با چکِ `isClientActivated` گارد شد.
 
-9. **تگِ شماره‌ی معکوس (۱۰۰،۹۹،۹۸):** علت در بخشِ ۵-ه توضیح داده شد (اسلات‌ها 0,99,98,...).
-   فیکس: helper بر اساسِ `loginTime` (بخشِ ۷).
+9. **تگِ شماره‌ی معکوس (۱۰۰،۹۹،۹۸):** علت در ۵-ه؛ فیکس: helper بر اساسِ `loginTime` (بخش ۷).
+   ✅ کاربر تأیید کرد ترتیب درست شد.
 
-10. **ترجمه‌ی کلِ چت در دسترس نبود / inline کار نمی‌کرد / وضعیت به‌خاطر نمی‌ماند:**
-    هر سه یک ریشه داشتند: قفلِ **Premium** در `TranslateController.isFeatureAvailable()`.
-    چون کاربر `apply_mods.py` را اجرا نکرده بود، این قفل هنوز روی سیستمش بود. حذفِ قفل هر سه را
-    حل کرد (مکانیزمِ به‌خاطرسپاری از قبل در کد بود). جزئیات در بخشِ ۸.
+10. **ترجمه‌ی کلِ چت در دسترس نبود / به‌خاطر نمی‌ماند:** قفلِ Premium در
+    `TranslateController.isFeatureAvailable()` (هر دو overload). حذف شد؛ مکانیزمِ به‌خاطرسپاری
+    (`translatingDialogs` + `saveTranslatingDialogsCache`) از قبل در کد بود.
+
+11. **نوارِ Translate بالای چت با وجودِ فیکسِ ۱۰ هم نمی‌آمد (کشفِ ریشه‌ایِ مهم):**
+    نوار ۳ لایه گیتِ **جدا از هم** داشت:
+    - `TranslateController.isDialogTranslatable` شرطِ `translatableDialogs.contains(dialogId)` داشت
+      که فقط با **تشخیصِ زبانِ ML Kit گوگل** پر می‌شود (چند پیام باید تشخیص داده شوند و از
+      آستانه‌ها بگذرند) — روی گوشیِ کاربر با گوگلِ بلاک، **هرگز** پر نمی‌شد. فیکس: حذفِ این شرط
+      → نوار در همه‌ی دیالوگ‌های عادی (به‌جز Saved Messages و چتِ مخفی).
+    - `ChatActivity`: شرطِ `showTranslate` برای غیرِ Premium فقط بعد از صفرشدنِ یک شمارنده‌ی
+      تبلیغی نوار را نشان می‌داد، و `onButtonClick` برای غیرِ Premium به‌جای toggle، شیتِ خریدِ
+      Premium باز می‌کرد. هر دو ساده شدند (toggle مستقیم).
+    - `TranslateButton.java`: ۳ گیتِ Premium (کلیکِ آیکنِ منو، آیکنِ customize/close، گزینه‌ی
+      «Do not translate X») — هر سه باز شدند.
+
+12. **رفرش‌نشدنِ حباب بعد از لغو/ترجمه‌ی مجدد (پیدا شده در حلقه‌ی بازبینی):**
+    helperِ `toggleManualMessageTranslation` خودش `updateTranslation(true)` را صدا می‌زد و گذارِ
+    وضعیت را «مصرف» می‌کرد؛ بعد handlerِ `updateMessageTranslation` در ChatActivity که با
+    `updateTranslation(false)` چک می‌کند، تغییری نمی‌دید و سلول را بازرسم نمی‌کرد.
+    **قانون:** helper فقط notification (`messageTranslated`) بفرستد؛ گذارِ وضعیت را خودِ
+    handlerِ ChatActivity انجام بدهد تا `cell.setMessageObject/updateRowAtPosition` اجرا شود.
+
+13. **گیرکردنِ پیام بعد از شکستِ ترجمه (حلقه‌ی بازبینی):** اگر ترجمه fail می‌شد (بدونِ VPN)،
+    پیام در `manualTranslatedMessages` علامت‌خورده می‌ماند و لمسِ بعدی بی‌صدا فقط علامت را
+    برمی‌داشت. فیکس: undo فقط وقتی `set.contains(messageId) && messageObject.translated`؛
+    در غیرِ این صورت retry.
+
+14. **فریزِ کلِ چت بعد از ترجمه‌ی حباب (گزارشِ کاربر):** شاخه‌ی [mod] از `closeMenu(false)`
+    استفاده می‌کرد → scrim تاریک برای همیشه می‌ماند و چت به لمس جواب نمی‌داد (شرح در ۵-و).
+    فیکس: `closeMenu()`.
+
+15. **نبودِ گزینه‌ی لغو بعد از ورودِ مجدد به چت (گزارشِ کاربر):**
+    `MessageObject.getMessageTextToTranslate` برای پیامِ `translated` مقدارِ **null** برمی‌گرداند
+    → شرطِ ساختِ منو (`!TextUtils.isEmpty(...)`) گزینه‌ی Translate را برای پیامِ ترجمه‌شده اصلاً
+    اضافه نمی‌کرد → برچسبِ «Show Original» هیچ‌وقت فرصتِ نمایش نداشت. فیکس دوتکه:
+    - شرطِ ساختِ منو (هر ۲ سایت): `isMessageManuallyTranslated(selectedObject) || !TextUtils.isEmpty(...)`.
+    - یک **شاخه‌ی کلیکِ اختصاصیِ undo** قبل از بلوکِ عادیِ `OPTION_TRANSLATE` (چون مسیرِ عادی به
+      `finalMessageText` و چکِ زبان تکیه دارد که برای پیامِ ترجمه‌شده null/نامعتبر است).
+
+16. **باگِ idempotency در apply_mods (حلقه‌ی بازبینی):** بعد از افزودنِ بخشِ 5.7 (phone-label)،
+    اجرای دومِ apply_mods helperِ تگ را **دوباره** درج می‌کرد (چون متنِ سایت‌ها به phone-label
+    تبدیل شده بود و چکِ `new in text` دیگر skip نمی‌کرد) و بعد ERROR می‌داد.
+    فیکس: گاردِ `file_contains(...)` قبل از پچ‌های تگ در بخش‌های 5/5.5/5.7 («superseded by
+    phone label, skipped») و همان الگو در اسکریپت‌های مستقل.
 
 ---
 
-## ۷) شماره‌گذاریِ اکانت (بر اساسِ ترتیبِ لاگین)
+## ۷) شماره‌گذاری و برچسبِ اکانت‌ها
 
-helperِ اضافه‌شده به `UserConfig.java` (درست قبل از `getActivatedAccountsCount`):
+### helperِ شماره‌ی ترتیبی (بر اساسِ لاگین) — در `UserConfig.java`
 ```java
 public static int getAccountTagNumber(int account) {
     if (account < 0 || account >= MAX_ACCOUNT_COUNT) { return account + 1; }
@@ -172,17 +220,37 @@ public static int getAccountTagNumber(int account) {
     return rank;
 }
 ```
-- `loginTime` یک `public int` در UserConfig است که هنگامِ لاگین برابرِ timestamp می‌شود.
-  همان چیزی که خودِ سوییچرِ اکانت هم برای مرتب‌سازی استفاده می‌کند → ترتیبِ لاگین.
-- شماره پایدار است (بعد از ری‌استارت عوض نمی‌شود، مگر اکانتِ قبلی logout شود).
+- `loginTime` یک `public int` در UserConfig است (timestamp لاگین) — همان که سوییچرِ اکانت
+  برای مرتب‌سازی استفاده می‌کند. شماره پایدار است مگر اکانتِ قبلی logout شود.
 
-**محل‌های نمایشِ تگ (باید در همه باشد):**
-- `ui/MainTabsActivity.java` → متد `accountView`، خطِ `textView.setText(...UserObject.getUserName(user))`.
-- `ui/DialogsActivity.java` → متد `accountView` (منوی کشویی/Drawer)، همان الگو.
-- `ui/Cells/AccountSelectCell.java` → متد `setAccount`، خطِ `...formatName(user.first_name, user.last_name)`.
-  (این سلول در «Send as»/انتخابِ اکانت استفاده می‌شود.)
-همه به شکلِ `"#" + UserConfig.getAccountTagNumber(account) + " " + <نام>` تغییر کردند.
-(هر سه فایل `import org.telegram.messenger.UserConfig;` را از قبل دارند.)
+### helperِ برچسبِ شماره‌تلفن (جدید) — در `UserConfig.java`، بعد از helper بالا
+```java
+public static String getAccountLabel(int account, String fallbackName) {
+    String label = fallbackName;
+    try {
+        TLRPC.User user = getInstance(account).getCurrentUser();
+        if (user != null && user.phone != null && user.phone.length() > 0) {
+            String formatted = org.telegram.PhoneFormat.PhoneFormat.getInstance().format("+" + user.phone);
+            // اولین توکنِ فرمت‌شده = کدِ کشور؛ بقیه = شماره‌ی محلی
+            int space = formatted.indexOf(' ');
+            String local = space > 0 ? formatted.substring(space + 1) : formatted;
+            ... (trim + حذفِ + ابتدایی؛ خالی بود → همان نام)
+        }
+    } catch (Exception e) { /* keep name */ }
+    return "#" + getAccountTagNumber(account) + " " + label;
+}
+```
+- خروجی مثل `#1 912 345 6789` — با `PhoneFormat` خودِ تلگرام، پس برای هر کشوری درست است.
+- **فقط UIِ مدیریتیِ خودمان**؛ نام در چت/گروه/مخاطبین دست‌نخورده.
+
+### ۶ محلِ نمایش (همه از `getAccountLabel` استفاده می‌کنند)
+- `ui/MainTabsActivity.java` → `accountView` (شیتِ لمسِ طولانی روی آواتار).
+- `ui/DialogsActivity.java` → `accountView` (منوی کشویی/Drawer).
+- `ui/Cells/AccountSelectCell.java` → `setAccount` (شیتِ «Send as»؛ متغیرِ اکانت: `accountNumber`).
+- `ui/ProfileActivity.java` → بلوکِ `CharSequence newString = UserObject.getUserName(user);`
+  (فقط وقتی `user.id == getUserConfig().getClientUserId()`؛ پروفایلِ دیگران دست‌نخورده).
+- `ui/SettingsActivity.java` → `setInfo` (هدرِ تنظیمات، `titleView`).
+- `ui/SettingsActivity.java` → `AccountCell.set` (لیستِ حساب‌های داخلِ تنظیمات، `textView`).
 
 ---
 
@@ -190,51 +258,50 @@ public static int getAccountTagNumber(int account) {
 
 ### فلگ‌های موتور (در `MessagesController.java`)
 - دو رشته: `translationsManualEnabled` (تک‌پیام) و `translationsAutoEnabled` (کلِ چت).
-  مقادیرِ ممکن: `"enabled"`, `"alternative"`, `"system"`, `"disabled"`.
-- ما هر دو را روی `"alternative"` قفل کردیم (سبکِ نکوگرام = موتورِ گوگل):
-  - در `loadConfig` (خطوطِ ~۱۶۹۹): `... = mainPreferences.getString(..., "enabled");` → `... = "alternative";`
-  - در appConfigِ سرور (خطوطِ ~۴۸۶۷): شرطِ `if (!TextUtils.equals(...))` → `if (false)` تا سرور
-    نتواند مقدار را برگرداند. (کامنتِ دو پچ متفاوت است: `(manual)` و `(auto)` تا idempotency قاطی نشود.)
+  هر دو روی `"alternative"` قفل شدند (= موتورِ گوگل، سبکِ نکوگرام): در `loadConfig` مقداردهیِ
+  مستقیم؛ در appConfigِ سرور شرطِ به‌روزرسانی → `if (false)` (کامنت‌های `(manual)`/`(auto)` عمداً متفاوت‌اند).
 
 ### مسیرِ موتورِ گوگل (کدِ رسمیِ موجود)
-- `ui/Components/TranslateAlert2.java` → `alternativeTranslate` / `alternativeTranslateInternal`:
-  endpointِ `https://translate.googleapis.com/translate_a/single?client=gtx&...` (همان نکوگرام)،
-  با تکه‌تکه‌کردنِ متنِ بلند (`cut`) و چرخشِ User-Agent.
-- `TranslateController.java` وقتی `method == "alternative"` باشد از همین مسیر استفاده می‌کند.
+- `ui/Components/TranslateAlert2.java` → `alternativeTranslate`: endpointِ
+  `https://translate.googleapis.com/translate_a/single?client=gtx&...` با chunking و چرخشِ UA.
+- `TranslateController.pushToTranslate` وقتی method == "alternative" از همین مسیر می‌رود
+  (هم برای کلِ چت، هم برای ترجمه‌ی دستیِ تک‌پیام).
 
-### قفلِ Premium (باگِ اصلی)
-در `TranslateController.java`:
-```java
-public boolean isFeatureAvailable() {
-    return isChatTranslateEnabled() && UserConfig.getInstance(currentAccount).isPremium(); // <-- premium gate
-}
-public boolean isFeatureAvailable(long dialogId) {
-    if (!isChatTranslateEnabled()) return false;
-    final TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
-    return (UserConfig.getInstance(currentAccount).isPremium() || chat != null && chat.autotranslation); // <-- premium gate
-}
-```
-فیکس:
-- اولی → `return isChatTranslateEnabled();`
-- دومی (کلِ بلوکِ chat/return) → `return true; // [mod] chat/group translate enabled for everyone`
-- (یک `isPremium()` دیگر در `isLanguageRestricted` می‌ماند و **بی‌ضرر** است — فقط تعیین می‌کند
-  زبانِ خودِ کاربر ترجمه نشود.)
+### قفل‌های Premium (همه حذف شدند)
+- `TranslateController.isFeatureAvailable()` (۲ overload) — جلسه‌ی قبل.
+- `ChatActivity.showTranslate` و `TranslateButton.onButtonClick` و ۳ جای `TranslateButton.java` — این جلسه (باگ ۱۱).
 
-### به‌خاطرسپاریِ وضعیتِ per-dialog (از قبل در کد بود، فقط پشتِ قفل)
-- `translatingDialogs` (LongSparseArray) + `toggleTranslatingDialog(dialogId, value)` که
-  `saveTranslatingDialogsCache()` را صدا می‌زند.
-- ذخیره در setting: `translating_dialog_languages2` (و `hidden_translation_at`).
-- بارگذاری در استارت: `loadTranslatingDialogsCached()`.
-- `isChatTranslateEnabled()`: بستگی به `isTranslationsAutoEnabled()` (= true چون "alternative")
-  و settingِ `translate_chat_button` (پیش‌فرض true).
+### نوارِ ترجمه‌ی کلِ چت
+- `isDialogTranslatable` دیگر به تشخیصِ زبان وابسته نیست → نوار در همه‌ی چت‌ها/گروه‌ها/کانال‌ها.
+- لمسِ نوار → `toggleTranslatingDialog` → همه‌ی حباب‌های قابلِ ترجمه inline ترجمه می‌شوند؛
+  وضعیت per-dialog در `translating_dialog_languages2` ذخیره و بعد از ری‌استارت لود می‌شود.
+- آیکنِ کنارِ نوار → منوی انتخابِ زبانِ مقصد + «Hide» برای مخفی‌کردنِ نوارِ همان چت.
 
-### تفاوتِ تک‌پیام و کلِ چت (برای رفعِ سوءتفاهمِ کاربر)
-- **تک‌پیام** (لمسِ طولانی روی پیام → Translate) → همیشه پنجره‌ی `TranslateAlert2` (طراحیِ تلگرام).
-- **ترجمه‌ی inline داخلِ حباب** = همان قابلیتِ «ترجمه‌ی کلِ چت»: نوارِ Translate بالای چت →
-  لمس → پیام‌ها داخلِ حباب ترجمه می‌شوند. این پشتِ قفلِ Premium بود.
+### ترجمه‌ی دستیِ تک‌پیام داخلِ حباب (ساختِ خودمان)
+- state: `manualTranslatedMessages` (HashMap<Long dialogId, HashSet<Integer msgId>>) در
+  TranslateController — **در حافظه**؛ بعد از ری‌استارتِ کاملِ اپ پاک می‌شود (متنِ ترجمه در DB
+  می‌ماند ولی حباب به اصل برمی‌گردد) — **عمدی**.
+- `toggleManualMessageTranslation(messageObject)`:
+  - علامت‌خورده و `translated` → undo: حذفِ علامت + notification (بدونِ دست‌زدن به وضعیت — باگ ۱۲).
+  - ترجمه‌ی کش‌شده با زبانِ درست → فقط notification.
+  - وگرنه → `messageTranslating` + `pushToTranslate` (callback: ست‌کردنِ
+    `translatedText/translatedToLanguage` + `updateMessageCustomParams` + `messageTranslated`).
+- زبانِ مقصد همیشه `getDialogTranslateTo(dialogId)` تا شرطِ
+  `TextUtils.equals(getDialogTranslateTo(...), translatedToLanguage)` در `updateTranslation` برقرار بماند.
+- شرطِ `MessageObject.updateTranslation` (شاخه‌ی سوم) این‌طور باز شد:
+  `(isMessageManuallyTranslated(dialogId, id) || isTranslatingDialog && !isTranslateDialogHidden)`.
+- ChatActivity: **۳ سایتِ** `TranslateAlert2.showAlert` (زبانِ معلوم / تشخیص‌شده / بدونِ detector)
+  هر سه با شاخه‌ی `if (TranslateController.isTranslatable(selectedObject)) { toggle; closeMenu(); } else { پنجره }`
+  پچ شدند + **شاخه‌ی چهارمِ undo** قبل از کلِ بلوک (باگ ۱۵) + برچسبِ منو
+  (`ShowOriginalButton` وقتی manual && translated) در ۲ سایتِ ساختِ منو.
+- **fallback به پنجره:** پیام‌های خودِ کاربر (`isOutOwner`) و انواعِ غیرقابلِ ترجمه‌ی inline —
+  محدودیتِ `TranslateController.isTranslatable` است، عمدی.
+- رفتارهای عمدی: در چتی که کلش ترجمه است، toggleِ تک‌پیام اثرِ دیداری ندارد (ترجمه‌ی کلِ چت غالب
+  است)؛ shimmer «در حالِ ترجمه» برای تک‌پیامِ دستی نمایش داده نمی‌شود (isTranslating به
+  isTranslatingDialog گره خورده) — بی‌اهمیت.
 
 ### دکمه‌ی ترجمه‌ی تک‌پیام پیش‌فرض روشن
-`TranslateController.java`: مقدارِ پیش‌فرضِ `translate_button` از `false` به `true`.
+`TranslateController`: پیش‌فرضِ `translate_button` → true.
 
 ---
 
@@ -242,116 +309,80 @@ public boolean isFeatureAvailable(long dialogId) {
 
 ### الف) در ریپو (برای بیلدِ کامل از صفر)
 - `setup.bat` / `setup.sh` — clone سورس روی کامیتِ ثابت + اجرای `apply_mods.py`.
-- `apply_mods.py` — **همه‌ی** تغییرات (جاوا + نیتیو + gradle). ساختار (idempotent، هر پچ برچسب دارد):
-  1. سقفِ اکانتِ جاوا (۲ ثابت)
-  1.5 گاردهای lazy-init (۳ حلقه، گاردِ اصلی بعد از loadConfig)
-  1.6 خاموش‌کردنِ CheckJNI
-  1.7 سقفِ نیتیو + map پویا
-  1.8 helperِ tgCurrentEnv + جایگزینیِ ۳۵ موردِ jniEnv
-  1.9 دو null-check کانکشن
-  1.10 گاردِ getLocationsCount
-  2. حذفِ قفلِ Premiumِ ترجمه (۲ پچ)
-  3. دکمه‌ی ترجمه‌ی تک‌پیام پیش‌فرض روشن
-  4. موتورِ گوگل (۴ پچ در MessagesController)
-  5. شماره‌گذاریِ اکانت (helper در UserConfig + ۳ محلِ نمایش)
-  مجموعاً ۲۴ پچ؛ روی سورسِ کامیتِ ثابت تست شده (اعمالِ تمیز + idempotent + توازنِ `{}`/`()`).
+- `apply_mods.py` — **همه‌ی** تغییرات (جاوا + نیتیو + gradle)، ~۴۹ پچِ idempotent با برچسب:
+  1) سقفِ اکانتِ جاوا؛ 1.5) گاردهای lazy-init؛ 1.6) خاموشیِ CheckJNI؛ 1.7) سقفِ نیتیو + map؛
+  1.8) tgCurrentEnv (۳۵ جایگزینی)؛ 1.9) دو null-check؛ 1.10) گاردِ LocationController؛
+  2) حذفِ قفلِ Premium ترجمه؛ 3) دکمه‌ی تک‌پیام پیش‌فرض روشن؛ 4) موتورِ گوگل (۴ پچ)؛
+  5) تگِ شماره (helper + ۳ محل)؛ 5.5) تگ در پروفایل/تنظیمات (۳ محل)؛
+  5.7) برچسبِ شماره‌تلفن (helper + ۶ محل)؛ 6) نوارِ ترجمه در همه‌ی چت‌ها (۶ پچ)؛
+  7) ترجمه‌ی حبابِ تک‌پیام + undo (helper و MessageObject و ۳+۲+۲+۱ پچِ ChatActivity + hotfixها).
+  پچ‌های تگِ 5/5.5 با `file_contains` گارد شده‌اند (باگ ۱۶). روی سورسِ pinned تستِ کامل:
+  اجرای اول ۴۹ OK، اجرای دوم صفر تغییر، توازنِ کد سالم.
 - `fix_crash.py` / `fix_crash.bat` — ابزارِ کمکیِ فقط گاردهای lazy-init.
 - `build_config.json` — کلیدها: `account_limit=100`, `enable_chat_translate_for_all`,
-  `translate_button_default_on`, `nekogram_style_translation`, `account_number_tags`.
+  `translate_button_default_on`, `nekogram_style_translation`, `account_number_tags`,
+  `account_phone_labels`, `translate_bar_for_all`, `bubble_translate`.
+- `bubble_translate_and_tags.py/.bat` و `phone_labels.py/.bat` — در ریپو هم هستند (پایین).
 - `README.md`, `BUILD-GUIDE-FA.md`, `conversation.md`.
 
 ### ب) اسکریپت‌های مستقلِ فرستاده‌شده به کاربر (روی سورسِ محلیِ او)
-> همه انگلیسی‌اند، `find_project_root` خودشان پوشه را پیدا می‌کند، idempotent، بکاپ می‌سازند.
-- `fix_native_crash.py/.bat` — همه‌ی فیکس‌های نامحدودسازی + کرش (معادلِ بخش‌های ۱ تا ۱.۱۰ apply_mods). بکاپ: `.bak`.
-- `fix_round2.py/.bat` — پاک‌سازیِ بعد از ترکیبِ اسکریپت‌های قدیمی: حذفِ تعریفِ تکراریِ
-  `tgCurrentEnv`، جابه‌جاییِ گاردِ اصلی به بعد از loadConfig، حذفِ گاردهای تکراری، و یک
-  **گزارشِ تشخیصی**. بکاپ: `.bak2`.
-- `add_features.py/.bat` — موتورِ گوگل + تگِ شماره (نسخه‌ی اولِ تگ که باگِ اسلات داشت). بکاپ: `.bak3`.
-- `fix_translate_and_tags.py/.bat` — حذفِ قفلِ Premium (۲ پچ) + helperِ loginTime در
-  UserConfig + اصلاحِ تگ‌های باگ‌دار به helper + افزودنِ تگ به DialogsActivity. بکاپ: `.bak4`.
-- `bubble_translate_and_tags.py/.bat` — **آخرین** (این یکی در ریپو هم هست): ۱۹ پچ در ۳ گروه:
-  (A) تگِ شماره در پروفایلِ خود (ProfileActivity)، هدرِ تنظیمات (SettingsActivity.setInfo) و
-  لیستِ اکانت‌های داخلِ تنظیمات (SettingsActivity.AccountCell.set).
-  (B) نوارِ Translate بالای **همه‌ی** چت‌ها: حذفِ شرطِ `translatableDialogs.contains` از
-  `isDialogTranslatable` (تشخیصِ زبانِ ML گوگل روی گوشیِ بدونِ سرویسِ گوگل هیچ‌وقت کامل
-  نمی‌شود — ریشه‌ی «نوار نمی‌آید» همین بود، نه فقط قفلِ Premium) + حذفِ شرطِ premium از
-  `showTranslate` و `onButtonClick` در ChatActivity + ۳ گیتِ premium در TranslateButton.
-  (C) ترجمه‌ی داخلِ حباب برای تک‌پیام: helperِ `toggleManualMessageTranslation` در
-  TranslateController (از همان pushToTranslate/موتورِ کلِ چت استفاده می‌کند) + پذیرشِ ترجمه‌ی
-  دستی در شرطِ `MessageObject.updateTranslation` + جایگزینیِ ۳ محلِ بازشدنِ TranslateAlert2 در
-  ChatActivity با toggle (با fallback به پنجره برای پیام‌های غیرقابل‌ترجمه مثل پیامِ خودِ کاربر)
-  + برچسبِ منو «Show Original» وقتی پیام دستی ترجمه شده. بکاپ: `.bak5`. فقط جاوا → بیلدِ عادی.
+> همه انگلیسی/ASCII، `find_project_root` خودشان پوشه را پیدا می‌کنند، idempotent، بکاپِ یک‌باره.
+- `fix_native_crash.py/.bat` — نامحدودسازی + فیکس‌های کرش (معادلِ ۱ تا ۱.۱۰). بکاپ: `.bak`.
+- `fix_round2.py/.bat` — پاک‌سازیِ ترکیبِ اسکریپت‌های قدیمی + گزارشِ تشخیصی. بکاپ: `.bak2`.
+- `add_features.py/.bat` — موتورِ گوگل + تگِ شماره (نسخه‌ی باگ‌دارِ اسلاتی). بکاپ: `.bak3`.
+- `fix_translate_and_tags.py/.bat` — حذفِ قفلِ Premium + helperِ loginTime + اصلاحِ تگ‌ها. بکاپ: `.bak4`.
+- `bubble_translate_and_tags.py/.bat` — **نسخه‌ی ۳ (فایلِ نهایی که کاربر باید داشته باشد):**
+  ۱۹ پچِ اصلی (تگ در پروفایل/تنظیمات + نوارِ ترجمه‌ی همه‌ی چت‌ها + ترجمه‌ی حباب) به‌علاوه‌ی
+  hotfixهای v2 (repaint/retry — باگ‌های ۱۲/۱۳) و v3 (فریز/undo — باگ‌های ۱۴/۱۵).
+  **خود-تعمیرگر است:** روی سورسِ v1 یا v2 یا خام، خودش تشخیص می‌دهد و فقط لازم‌ها را می‌زند
+  (hotfixها *قبل از* insert اجرا می‌شوند تا helperِ قدیمی درجا تعمیر شود، نه تکراری).
+  روی سورسِ phone_labels-خورده هم پچ‌های تگش را skip می‌کند («superseded»). بکاپ: `.bak5`. فقط جاوا.
+- `phone_labels.py/.bat` — **آخرین:** برچسبِ «#N شماره‌ی محلی» در ۶ محلِ مدیریتی (بخش ۷).
+  پچ‌ها **دو-حالته** (`patch_first`): هم سورسِ تگ‌دار هم خام را می‌گیرند. بکاپ: `.bak6`. فقط جاوا.
+  ترتیبِ درستِ اجرا برای کاربر: اول bubble (v3) بعد phone_labels — ولی برعکس هم نمی‌شکند.
 
-- `phone_labels.py/.bat` — **آخرین**: نمایشِ حساب‌ها با «#N شماره‌ی محلی» (بدونِ کدِ کشور) به‌جای
-  نام، فقط در UIِ مدیریتیِ خودمان: سوییچرِ آواتار (MainTabsActivity)، منوی کشویی (DialogsActivity)،
-  Send-as (AccountSelectCell)، پروفایلِ خود (ProfileActivity)، هدرِ تنظیمات و لیستِ اکانت‌های
-  تنظیمات (SettingsActivity). helperِ `UserConfig.getAccountLabel(account, fallbackName)` با
-  `PhoneFormat` کدِ کشور را جدا می‌کند (اولین توکنِ فرمت‌شده)؛ بدونِ شماره → همان نام.
-  چت/گروه دست‌نخورده. هر پچ دو-حالته است (سورسِ تگ‌دار یا خام). بکاپ: `.bak6`. فقط جاوا.
-  (در apply_mods بخشِ 5.7 + کلیدِ `account_phone_labels`؛ پچ‌های تگِ بخشِ 5/5.5 با
-  `file_contains` گارد شدند تا rerun بعد از phone-label دوباره درج نکند.)
-
-### الگوی امنِ replace_once (در همه‌ی اسکریپت‌ها)
-اول چک می‌کند متنِ **جدید** موجود است (→ skip، برای idempotency)، بعد شمارشِ متنِ **قدیم**؛
-اگر ۰ بار → WARNING (نه توقف)، اگر >۱ بار → WARNING. این باعث می‌شود روی سورسِ نیمه‌پچ‌شده هم امن باشد.
+### الگوهای امنِ پچ (در همه‌ی اسکریپت‌ها)
+- `replace_once/patch`: اول چکِ متنِ **جدید** (skip)، بعد شمارشِ **قدیم**؛ ۰ یا >۱ → هشدار، نه توقف.
+- `patch_first` (جدید): لیستی از جفت‌های (old,new) + یک needle برای idempotency — برای
+  سورس‌هایی که ممکن است در حالت‌های پچِ مختلف باشند.
+- `patch_multi/replace_all`: برای متن‌های عمداً تکراری (مثلِ ۳ سایتِ closeMenu).
+- hotfixِ نسخه‌های قبلیِ خودِ اسکریپت‌ها همیشه **قبل از** insertِ متنِ کامل اجرا شود.
 
 ---
 
 ## ۱۰) وضعیت فعلی
-- ✅ لاگین نامحدود + رفعِ کرش‌ها: کاربر با **۵ اکانت** تست کرد و پایدار است.
-- ✅ موتورِ ترجمه‌ی گوگل (سبکِ نکوگرام): اعمال شد.
-- ✅ دکمه‌ی ترجمه‌ی تک‌پیام پیش‌فرض روشن.
-- ✅ **تگِ شماره به ترتیبِ لاگین درست شد** (تأییدِ کاربر) — ولی فقط در شیتِ لمسِ طولانیِ آواتار
-  دیده می‌شد.
-- ❌ بازخوردِ کاربر بعد از `fix_translate_and_tags`: نوارِ Translate بالای چت نیامد (ریشه:
-  وابستگی به تشخیصِ زبانِ ML گوگل که روی گوشیِ او کار نمی‌کند + گیت‌های premium در ChatActivity
-  و TranslateButton که جدا از TranslateController بودند) و ترجمه‌ی تک‌پیام هنوز پنجره‌ی بازشو بود.
-- 🔄 **در حال تستِ کاربر (آخرین اسکریپت `bubble_translate_and_tags`):**
-  - تگ در پروفایلِ خود + هدرِ تنظیمات + لیستِ اکانت‌های تنظیمات.
-  - نوارِ Translate بالای همه‌ی چت‌ها (لمس → کلِ چت داخلِ حباب‌ها ترجمه، دوباره → Show Original).
-  - ترجمه‌ی تک‌پیام داخلِ خودِ حباب + «Show Original» در لمسِ طولانیِ دوباره.
+- ✅ لاگین نامحدود + رفعِ کرش‌ها: با ۵ اکانت تست شده و پایدار است.
+- ✅ موتورِ ترجمه‌ی گوگل + دکمه‌ی تک‌پیام پیش‌فرض روشن.
+- ✅ تگِ شماره به ترتیبِ درستِ لاگین (تأییدِ کاربر).
+- ✅ ترجمه‌ی حبابِ تک‌پیام **کار می‌کند** (تأییدِ کاربر) — ولی بیلدِ قبلی‌اش فریز/بی‌undo بود (باگ ۱۴/۱۵، رفع شد).
+- 🔄 **در انتظارِ بیلد و تستِ کاربر:**
+  - `bubble_translate_and_tags` نسخه‌ی ۳: بدونِ فریز + «Show Original» حتی بعد از ورودِ مجدد به چت.
+  - نوارِ Translate بالای همه‌ی چت‌ها (لمس → کلِ چت داخلِ حباب‌ها؛ ماندگاری per-dialog).
+  - تگ در پروفایلِ خود/هدرِ تنظیمات/لیستِ حساب‌ها.
+  - `phone_labels`: نمایشِ «#N شماره‌ی محلی» در ۶ محلِ مدیریتی.
 
 ## ۱۱) کارهای باقی‌مانده (Pending)
-1. تأییدِ کاربر برای اسکریپتِ `bubble_translate_and_tags` (تگ‌ها در همه‌جا + نوار + ترجمه‌ی حباب).
-2. اگر کاربر خواست تگ در جاهای بیشتری هم باشد (مثلاً صفحه‌ی ویرایشِ پروفایل)، محلِ نمایشِ
-   جدید را پیدا و پچ کن (الگو: `getAccountTagNumber`).
-3. رفعِ به‌هم‌ریختنِ **bidi فارسی/انگلیسی** موقعِ ترجمه.
-4. **«فقط اکانتِ فعال زنده باشد»** (پیشنهادِ کاربر): برای مصرفِ منابع در ۱۰۰ اکانت.
-5. **ری‌برندینگ:** نامِ اپ، آیکون، `applicationId` (تا کنارِ تلگرام رسمی نصب شود). نام هنوز انتخاب نشده.
-6. راهنمای اتصالِ سریع/پروکسیِ MTProto زیرِ فیلترینگ.
-
-### نکته‌های فنیِ این دور (برای ادامه)
-- «ترجمه‌ی کلِ چت» رسمی = نوارِ بالای چت؛ فعال‌شدنش ۳ لایه گیت داشت: TranslateController
-  (premium — قبلاً حذف شد)، ChatActivity (`showTranslate` و `onButtonClick` — premium جدا)،
-  TranslateButton (۳ جای premium) + شرطِ `translatableDialogs.contains` که فقط با تشخیصِ
-  زبانِ ML Kit گوگل پر می‌شود (روی گوشیِ کاربر با گوگلِ بلاک‌شده هرگز پر نمی‌شد).
-- ترجمه‌ی دستیِ تک‌پیام in-bubble: state در `manualTranslatedMessages` (حافظه، per-dialog+msgId)؛
-  بعد از ری‌استارتِ اپ پاک می‌شود (متنِ ترجمه در DB می‌ماند ولی حباب به اصل برمی‌گردد) — عمدی.
-- `MessageObject.updateTranslation` شرطش `isTranslatingDialog && !hidden` بود؛ حالا
-  `isMessageManuallyTranslated || (…)`. زبانِ مقصدِ ترجمه‌ی دستی همان `getDialogTranslateTo` است
-  تا شرطِ `TextUtils.equals(...)` برقرار بماند.
-- در ChatActivity سه محلِ `TranslateAlert2.showAlert` برای تک‌پیام هست (زبانِ معلوم/تشخیص/بدونِ
-  detector) — هر سه باید پچ شوند وگرنه بعضی پیام‌ها هنوز پنجره باز می‌کنند.
-- **باگِ فریزِ چت (گزارشِ کاربر، رفع شد):** در مسیرِ ترجمه‌ی حباب `closeMenu(false)` یعنی
-  «تاریکیِ پشتِ منو را نگه دار» (در کدِ اصلی پنجره‌ی TranslateAlert2 موقعِ بسته‌شدن
-  `dimBehindView(false)` را صدا می‌زد). بدونِ پنجره، scrim برای همیشه می‌ماند و چت به لمس جواب
-  نمی‌داد. فیکس: در شاخه‌ی [mod] از `closeMenu()` استفاده شود.
-- **باگِ نبودِ گزینه‌ی لغو (گزارشِ کاربر، رفع شد):** `getMessageTextToTranslate` برای پیامِ
-  translated مقدارِ null می‌دهد → شرطِ `!TextUtils.isEmpty(...)` گزینه‌ی Translate را برای پیامِ
-  ترجمه‌شده اصلاً به منو اضافه نمی‌کرد. فیکس: شرطِ ساختِ منو با
-  `isMessageManuallyTranslated(selectedObject) ||` باز شد + یک شاخه‌ی کلیکِ اختصاصیِ undo قبل از
-  بلوکِ عادیِ OPTION_TRANSLATE (چون مسیرِ عادی به getMessageTextToTranslate تکیه دارد که null است).
-- **باگِ رفرش‌نشدنِ حباب (رفع شد):** helperِ ترجمه‌ی دستی نباید خودش `updateTranslation(true)` را
-  صدا بزند؛ باید فقط notification بفرستد تا `updateMessageTranslation` در ChatActivity گذارِ
-  وضعیت را ببیند و سلول را دوباره رسم کند.
+1. تأییدِ تستِ کاربر: bubble v3 (فریز رفته؟ Show Original هست؟) + phone_labels (شماره‌ها درست‌اند؟).
+2. رفعِ به‌هم‌ریختنِ **bidi فارسی/انگلیسی** موقعِ ترجمه.
+3. **«فقط اکانتِ فعال زنده باشد»** (پیشنهادِ کاربر): برای مصرفِ منابع در ۱۰۰ اکانت.
+4. **ری‌برندینگ:** نامِ اپ، آیکون، `applicationId` (تا کنارِ تلگرام رسمی نصب شود). نام انتخاب نشده.
+5. راهنمای اتصالِ سریع/پروکسیِ MTProto زیرِ فیلترینگ.
 
 ## ۱۲) درس‌های کلیدی برای گفتگوهای بعدی
 - همیشه اسکریپت + `.bat`، **کاملاً انگلیسی (ASCII)**، فایل را مستقیم بفرست (نه لینک).
-- سورسِ اصلی را پچ کن، نه کپیِ build.
-- تغییرِ C++ = پاک‌کردنِ `.cxx`+`build` + Rebuild چند دقیقه‌ای + Uninstall. تغییرِ فقط جاوا = بیلدِ عادی.
+- سورسِ اصلی را پچ کن، نه کپیِ build. تغییرِ C++ = پاک‌کردنِ `.cxx`+`build`؛ فقط جاوا = بیلدِ عادی.
 - کرشِ نیتیو بدونِ backtrace قابلِ حل نیست (فیلترِ `DEBUG`).
-- قبل از هر پچ، متنِ دقیقِ سورس را از کامیتِ ثابت با `curl` بگیر و تست کن؛ روی خروجیِ WebFetch
-  برای متنِ عینِ کد تکیه نکن (خلاصه/ناقص می‌دهد).
-- اسلاتِ اکانت ترتیبی نیست (0,99,98,...)؛ برای هر منطقِ «شماره/ترتیب» از `loginTime` استفاده کن.
-- ریشه‌ی خیلی از «کار نمی‌کند»ها این است که کاربر `apply_mods.py` را اجرا نکرده و فقط
-  اسکریپت‌های مستقل را دارد؛ پس هر قابلیت را در اسکریپتِ مستقلِ جدید هم بگنجان.
+- قبل از هر پچ، متنِ دقیقِ سورس را از کامیتِ ثابت بگیر (clone/curl) و پچ را همان‌جا تست کن؛
+  به خروجیِ WebFetch برای متنِ عینِ کد تکیه نکن.
+- اسلاتِ اکانت ترتیبی نیست؛ برای «شماره/ترتیب» از `loginTime` استفاده کن.
+- ریشه‌ی خیلی از «کار نمی‌کند»ها اجرانشدنِ apply_mods است؛ هر قابلیت را اسکریپتِ مستقل هم بکن.
+- **در بازبینی، مسیرِ UI را هم ردگیری کن نه فقط مسیرِ داده:** فریزِ چت (scrim/closeMenu) و
+  غیب‌شدنِ گزینه‌ی منو (getMessageTextToTranslate=null) هر دو در لایه‌ی UI بودند و ردِ داده‌ایِ
+  «ترجمه انجام می‌شود» آن‌ها را نشان نمی‌داد.
+- **هر نسخه‌ی جدیدِ اسکریپت باید سورسِ پچ‌شده با نسخه‌های قبلیِ خودش را تعمیر کند** (hotfix قبل
+  از insert)، وگرنه درجِ تکراریِ helper = خطای کامپایل.
+- بعد از هر تغییرِ notification-محور، چک کن گذارِ وضعیت در **handler** اتفاق بیفتد نه قبل از آن
+  (الگوی باگ ۱۲).
+- چکِ توازنِ آکولاد/پرانتز باید **اول کامنت‌ها** را بردارد؛ آپاستروفِ داخلِ کامنتِ جاوا
+  (مثل «Telegram's») با regexِ ساده false-positive می‌دهد.
+- اسکریپت‌ها را در هر ۳ سناریو تست کن: سورسِ خام، سورسِ نیمه‌پچ (نسخه‌های قبلی)، اجرای مجدد.
