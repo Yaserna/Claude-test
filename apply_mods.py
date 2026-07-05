@@ -362,6 +362,14 @@ def main():
                      "                        if (!TextUtils.equals(translationsAutoEnabled, str.value)) {",
                      "                        if (false) { // [mod] keep Nekogram-style translation engine (auto)",
                      "translate-engine: auto appconfig")
+        # When the source language cannot be detected (ML Kit is blocked on the
+        # device) it comes back as "und"; Google rejects sl=und with HTTP 400 so
+        # translation silently fails. Map an unknown source to "auto".
+        ta2 = "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateAlert2.java"
+        replace_once(ta2,
+                     'uri += "e?client=gtx&sl=" + Uri.encode(fromLng) + "&tl=" + Uri.encode(toLng)',
+                     'uri += "e?client=gtx&sl=" + Uri.encode((fromLng == null || fromLng.length() == 0 || "und".equals(fromLng) || "undefined".equals(fromLng)) ? "auto" : fromLng) + "&tl=" + Uri.encode(toLng)',
+                     "translate-engine: unknown source language -> auto")
 
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)

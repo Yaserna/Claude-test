@@ -314,6 +314,14 @@ public static String getAccountLabel(int account, String fallbackName) {
 ### دکمه‌ی ترجمه‌ی تک‌پیام پیش‌فرض روشن
 `TranslateController`: پیش‌فرضِ `translate_button` → true.
 
+### باگ `sl=und` (ترجمه اغلب انجام نمی‌شد — رفع شد)
+- علت: وقتی تشخیصِ زبانِ مبدأ قطعی نیست (ML Kit روی گوشیِ کاربر بلاک است) زبان `und` می‌شود
+  و کد `sl=und` می‌فرستد؛ گوگل `sl=und` و `sl=""` را با **HTTP 400** رد می‌کند → ترجمه بی‌صدا شکست می‌خورد.
+  با curl تأیید شد: `und`→400، `auto`→200.
+- فیکس (در `TranslateAlert2.alternativeTranslateInternal`، خطِ ساختِ URL): زبانِ مبدأِ ناشناخته
+  (`null`/`""`/`und`/`undefined`) → `auto` تا گوگل خودش تشخیص دهد. یک نقطه، همه‌ی مسیرها (کلِ چت و حباب).
+- اسکریپت مستقل: `fix_translate_source.py/.bat` (بکاپ `.bak11`)؛ در apply_mods بخش ۴ هم اضافه شد.
+
 ---
 
 ## ۹) مجموعه‌ی اسکریپت‌ها
