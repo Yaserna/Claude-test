@@ -15,5 +15,6 @@
   "account_number_tags": true,
   "account_phone_labels": true,
   "translate_bar_for_all": true,
-  "bubble_translate": true
+  "bubble_translate": true,
+  "sleep_inactive_accounts": true
 }

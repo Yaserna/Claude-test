@@ -808,6 +808,59 @@ def main():
                      "            // applicationIdSuffix \".beta\" // [mod] YasTel: use official package to install over official Telegram",
                      "rebrand: official package")
 
+    if cfg.get("sleep_inactive_accounts", True):
+        print("9) Sleep inactive accounts (only the open account stays connected)")
+        cm = "TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java"
+        la = "TMessagesProj/src/main/java/org/telegram/ui/LaunchActivity.java"
+        sleep_helpers = (
+            "    // [mod] sleep-inactive-accounts: only the selected (currently open)\n"
+            "    // account keeps a live connection; every other logged-in account is put\n"
+            "    // fully to sleep -- no connection, no data in or out, no notifications --\n"
+            "    // until you switch to it. Set this to false to disable the feature.\n"
+            "    public static volatile boolean sleepInactiveAccounts = true;\n"
+            "\n"
+            "    public static boolean isAccountAwake(int account) {\n"
+            "        return !sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount;\n"
+            "    }\n"
+            "\n"
+            "    public static void applyAccountSleepStates() {\n"
+            "        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {\n"
+            "            if (UserConfig.getInstance(a).isClientActivated()) {\n"
+            "                getInstance(a).checkConnection();\n"
+            "            }\n"
+            "        }\n"
+            "    }\n"
+            "\n"
+        )
+        replace_once(cm,
+                     "    public static void setLangCode(String langCode) {",
+                     sleep_helpers + "    public static void setLangCode(String langCode) {",
+                     "sleep: helpers in ConnectionsManager")
+        replace_once(cm,
+                     "        native_setIpStrategy(currentAccount, selectedStrategy);\n"
+                     "        native_setNetworkAvailable(currentAccount, ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), ApplicationLoader.isConnectionSlow());\n"
+                     "    }",
+                     "        native_setIpStrategy(currentAccount, selectedStrategy);\n"
+                     "        if (!isAccountAwake(currentAccount)) { // [mod] sleep inactive accounts\n"
+                     "            native_setNetworkAvailable(currentAccount, false, ApplicationLoader.getCurrentNetworkType(), ApplicationLoader.isConnectionSlow());\n"
+                     "            native_pauseNetwork(currentAccount);\n"
+                     "            return;\n"
+                     "        }\n"
+                     "        native_setNetworkAvailable(currentAccount, ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), ApplicationLoader.isConnectionSlow());\n"
+                     "    }",
+                     "sleep: gate checkConnection")
+        replace_once(cm,
+                     "enablePushConnection, ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), SharedConfig.measureDevicePerformanceClass());",
+                     "enablePushConnection, isAccountAwake(currentAccount) && ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), SharedConfig.measureDevicePerformanceClass());",
+                     "sleep: gate init hasNetwork")
+        replace_once(la,
+                     "        UserConfig.selectedAccount = account;\n"
+                     "        UserConfig.getInstance(0).saveConfig(false);",
+                     "        UserConfig.selectedAccount = account;\n"
+                     "        UserConfig.getInstance(0).saveConfig(false);\n"
+                     "        ConnectionsManager.applyAccountSleepStates(); // [mod] sleep inactive accounts",
+                     "sleep: hook switchToAccount")
+
     print("\n=== All modifications applied successfully ===")
     print("Now open the Telegram folder in Android Studio and Build.")
 

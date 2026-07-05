@@ -368,7 +368,15 @@ public static String getAccountLabel(int account, String fallbackName) {
 ## ۱۱) کارهای باقی‌مانده (Pending)
 1. تأییدِ تستِ کاربر: bubble v3 (فریز رفته؟ Show Original هست؟) + phone_labels (شماره‌ها درست‌اند؟).
 2. رفعِ به‌هم‌ریختنِ **bidi فارسی/انگلیسی** موقعِ ترجمه.
-3. **«فقط اکانتِ فعال زنده باشد»** (پیشنهادِ کاربر): برای مصرفِ منابع در ۱۰۰ اکانت.
+3. ✅ **«فقط اکانتِ فعال زنده باشد»** انجام شد (`sleep_accounts.py` + بخشِ ۹ apply_mods، فقط جاوا).
+   ریشه: `ConnectionsManager.checkConnection()` تنها جایی است که `native_setNetworkAvailable`
+   را صدا می‌زند. گیت شد: اگر `isAccountAwake(account)` نبود (یعنی `account != UserConfig.selectedAccount`)
+   → `native_setNetworkAvailable(false)` + `native_pauseNetwork` و return. هلپرها
+   (`sleepInactiveAccounts`/`isAccountAwake`/`applyAccountSleepStates`) در ConnectionsManager؛
+   `init()` هم برای اکانتِ خواب `hasNetwork=false` می‌فرستد (آفلاین از استارتاپ)؛ و
+   `LaunchActivity.switchToAccount` بعد از ستِ `selectedAccount` تابعِ
+   `applyAccountSleepStates()` را صدا می‌زند تا اکانتِ جدید بیدار و قبلی بخوابد. بکاپ `.bak9`.
+   عمدی: اکانتِ خواب هیچ نوتیفیکیشنی نمی‌دهد تا بازش کنی. خاموش‌کردن: `sleepInactiveAccounts=false`.
 4. **ری‌برندینگ:** ✅ نام = **YasTel** و بسته = رسمی (`org.telegram.messenger`) انجام شد
    (اسکریپت `rebrand.py` + بخشِ ۸ در apply_mods). باقی‌مانده: **آیکون**. توجه: چون بسته رسمی شد،
    قبلِ نصب باید تلگرامِ رسمی **حذف** شود (امضاها فرق دارد؛ نصبِ روی‌هم نمی‌شود).
