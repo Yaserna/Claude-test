@@ -440,7 +440,7 @@ def main():
     sa = "TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java"
     if cfg.get("account_number_tags", True):
         print("5.5) Number tag in profile/settings")
-        if not file_contains(pa, "getAccountLabel(currentAccount"):
+        if not file_contains(pa, "(own profile)"):
             replace_once(pa,
                          "            CharSequence newString = UserObject.getUserName(user);\n"
                          "            String newString2;",
@@ -450,7 +450,7 @@ def main():
                          "account-tag: own profile header")
         else:
             print("  - [account-tag: own profile header] superseded by phone label, skipped.")
-        if not file_contains(sa, "titleView.setText(UserConfig.getAccountLabel(currentAccount"):
+        if not file_contains(sa, "(settings header)"):
             replace_once(sa,
                          "        titleView.setText(UserObject.getUserName(user));",
                          "        titleView.setText(\"#\" + UserConfig.getAccountTagNumber(currentAccount) + \" \" + UserObject.getUserName(user)); // [mod] account number tag (settings header)",
@@ -530,14 +530,30 @@ def main():
                      'textView.setText("#" + UserConfig.getAccountTagNumber(accountNumber) + " " + ContactsController.formatName(user.first_name, user.last_name)); // [mod] account number tag',
                      'textView.setText(UserConfig.getAccountLabel(accountNumber, ContactsController.formatName(user.first_name, user.last_name))); // [mod] account phone label',
                      "phone-label: send-as account select")
-        replace_once(pa,
-                     '            if (user.id == getUserConfig().getClientUserId()) { newString = "#" + UserConfig.getAccountTagNumber(currentAccount) + " " + newString; } // [mod] account number tag (own profile)',
-                     '            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)',
-                     "phone-label: own profile header")
-        replace_once(sa,
-                     '        titleView.setText("#" + UserConfig.getAccountTagNumber(currentAccount) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings header)',
-                     '        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)',
-                     "phone-label: settings header")
+        # Own profile + Settings headers show the REAL NAME with the #N tag
+        # after it (user's choice); the phone label stays everywhere else.
+        profile_name_tag = '            if (user.id == getUserConfig().getClientUserId()) { newString = newString.toString() + "  #" + UserConfig.getAccountTagNumber(currentAccount); } // [mod] account name tag (own profile)'
+        settings_name_tag = '        titleView.setText(UserObject.getUserName(user) + "  #" + UserConfig.getAccountTagNumber(currentAccount)); // [mod] account name tag (settings header)'
+        if file_contains(pa, "account phone label (own profile)"):
+            replace_once(pa,
+                         '            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)',
+                         profile_name_tag,
+                         "name-tag: own profile header (from phone label)")
+        else:
+            replace_once(pa,
+                         '            if (user.id == getUserConfig().getClientUserId()) { newString = "#" + UserConfig.getAccountTagNumber(currentAccount) + " " + newString; } // [mod] account number tag (own profile)',
+                         profile_name_tag,
+                         "name-tag: own profile header")
+        if file_contains(sa, "account phone label (settings header)"):
+            replace_once(sa,
+                         '        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)',
+                         settings_name_tag,
+                         "name-tag: settings header (from phone label)")
+        else:
+            replace_once(sa,
+                         '        titleView.setText("#" + UserConfig.getAccountTagNumber(currentAccount) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings header)',
+                         settings_name_tag,
+                         "name-tag: settings header")
         replace_once(sa,
                      '            textView.setText("#" + UserConfig.getAccountTagNumber(account) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)',
                      '            textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label (settings accounts list)',

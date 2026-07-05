@@ -213,23 +213,31 @@ def main():
                 "UserConfig.getAccountLabel(accountNumber, ContactsController.formatName(user.first_name, user.last_name))",
                 "phone label: send-as account select")
 
-    print("\n2) Own profile / Settings")
+    print("\n2) Own profile / Settings headers -> real name + #N tag")
+    # These two places show the REAL NAME with the #N tag after it (user's
+    # choice); the phone-number label stays everywhere else.
+    profile_name_tag = '            if (user.id == getUserConfig().getClientUserId()) { newString = newString.toString() + "  #" + UserConfig.getAccountTagNumber(currentAccount); } // [mod] account name tag (own profile)'
+    settings_name_tag = '        titleView.setText(UserObject.getUserName(user) + "  #" + UserConfig.getAccountTagNumber(currentAccount)); // [mod] account name tag (settings header)'
     patch_first(root, "ProfileActivity",
-                [('            if (user.id == getUserConfig().getClientUserId()) { newString = "#" + UserConfig.getAccountTagNumber(currentAccount) + " " + newString; } // [mod] account number tag (own profile)',
-                  '            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)'),
+                [('            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)',
+                  profile_name_tag),
+                 ('            if (user.id == getUserConfig().getClientUserId()) { newString = "#" + UserConfig.getAccountTagNumber(currentAccount) + " " + newString; } // [mod] account number tag (own profile)',
+                  profile_name_tag),
                  ("            CharSequence newString = UserObject.getUserName(user);\n            String newString2;",
                   "            CharSequence newString = UserObject.getUserName(user);\n"
-                  "            if (user.id == getUserConfig().getClientUserId()) { newString = UserConfig.getAccountLabel(currentAccount, newString.toString()); } // [mod] account phone label (own profile)\n"
+                  + profile_name_tag + "\n"
                   "            String newString2;")],
-                "UserConfig.getAccountLabel(currentAccount, newString.toString())",
-                "phone label: own profile header")
+                "account name tag (own profile)",
+                "name tag: own profile header")
     patch_first(root, "SettingsActivity",
-                [('        titleView.setText("#" + UserConfig.getAccountTagNumber(currentAccount) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings header)',
-                  '        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)'),
+                [('        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)',
+                  settings_name_tag),
+                 ('        titleView.setText("#" + UserConfig.getAccountTagNumber(currentAccount) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings header)',
+                  settings_name_tag),
                  ('        titleView.setText(UserObject.getUserName(user));',
-                  '        titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user))); // [mod] account phone label (settings header)')],
-                "titleView.setText(UserConfig.getAccountLabel(currentAccount, UserObject.getUserName(user)))",
-                "phone label: settings header")
+                  settings_name_tag)],
+                "account name tag (settings header)",
+                "name tag: settings header")
     patch_first(root, "SettingsActivity",
                 [('            textView.setText("#" + UserConfig.getAccountTagNumber(account) + " " + UserObject.getUserName(user)); // [mod] account number tag (settings accounts list)',
                   '            textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label (settings accounts list)'),

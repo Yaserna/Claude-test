@@ -247,7 +247,14 @@ public static String getAccountLabel(int account, String fallbackName) {
 - با `PhoneFormat` خودِ تلگرام، پس برای هر کشوری درست است.
 - **فقط UIِ مدیریتیِ خودمان**؛ نام در چت/گروه/مخاطبین دست‌نخورده.
 
-### ۶ محلِ نمایش (همه از `getAccountLabel` استفاده می‌کنند)
+### استثنا: هدرِ پروفایلِ خود + هدرِ تنظیمات = اسمِ واقعی + تگ (به‌درخواستِ کاربر)
+- این دو محل به‌جای شماره، **نامِ واقعی + `"  #N"`** نشان می‌دهند (مثل `Ali Rezaei  #1`):
+  - `ProfileActivity`: `newString = newString.toString() + "  #" + UserConfig.getAccountTagNumber(currentAccount);` — کامنت `[mod] account name tag (own profile)`
+  - `SettingsActivity` (titleView): `UserObject.getUserName(user) + "  #" + ...` — کامنت `[mod] account name tag (settings header)`
+- اسکریپتِ مستقل: `profile_name_tag.py/.bat` (بکاپ `.bak10`؛ سه‌حالته: phone/tag/خام).
+- `phone_labels.py` و apply_mods (5.5 گاردها + 5.7) هم به همین حالت به‌روز شدند.
+
+### ۴ محلِ دیگر (همچنان از `getAccountLabel` = شماره‌تلفن استفاده می‌کنند)
 - `ui/MainTabsActivity.java` → `accountView` (شیتِ لمسِ طولانی روی آواتار).
 - `ui/DialogsActivity.java` → `accountView` (منوی کشویی/Drawer).
 - `ui/Cells/AccountSelectCell.java` → `setAccount` (شیتِ «Send as»؛ متغیرِ اکانت: `accountNumber`).
