@@ -472,7 +472,7 @@ def main():
     #      Chats/groups keep showing the real name.
     # ------------------------------------------------------------------
     phone_helper = (
-        "    // [mod] account label: \"#N <local phone number>\" for our own management UI.\n"
+        "    // [mod] account label: \"<local phone number>  #N\" for our own management UI.\n"
         "    // Uses Telegram's own PhoneFormat to find the country code prefix, so it\n"
         "    // works for any country; falls back to the display name without a phone.\n"
         "    public static String getAccountLabel(int account, String fallbackName) {\n"
@@ -484,7 +484,7 @@ def main():
         "                if (formatted != null && formatted.length() > 0) {\n"
         "                    int space = formatted.indexOf(' ');\n"
         "                    String local = space > 0 ? formatted.substring(space + 1) : formatted;\n"
-        "                    local = local.trim();\n"
+        "                    local = local.replace(\" \", \"\").replace(\"-\", \"\");\n"
         "                    if (local.startsWith(\"+\")) {\n"
         "                        local = local.substring(1);\n"
         "                    }\n"
@@ -496,7 +496,7 @@ def main():
         "        } catch (Exception e) {\n"
         "            // keep the name if the phone cannot be formatted\n"
         "        }\n"
-        "        return \"#\" + getAccountTagNumber(account) + \" \" + label;\n"
+        "        return label + \"  #\" + getAccountTagNumber(account);\n"
         "    }\n"
     )
     if cfg.get("account_phone_labels", True):
@@ -508,6 +508,16 @@ def main():
                          "phone-label: helper in UserConfig")
         else:
             print("  - [phone-label: helper in UserConfig] already applied, skipped.")
+        # Hotfix for sources patched with the older helper: strip spaces from
+        # the number and move the #N tag to the end (two spaces before it).
+        replace_once(uc,
+                     "                    local = local.trim();\n",
+                     '                    local = local.replace(" ", "").replace("-", "");\n',
+                     "phone-label: no spaces in number")
+        replace_once(uc,
+                     '        return "#" + getAccountTagNumber(account) + " " + label;',
+                     '        return label + "  #" + getAccountTagNumber(account);',
+                     "phone-label: tag at end")
         replace_once(mta,
                      'textView.setText("#" + UserConfig.getAccountTagNumber(account) + " " + UserObject.getUserName(user)); // [mod] account number tag',
                      'textView.setText(UserConfig.getAccountLabel(account, UserObject.getUserName(user))); // [mod] account phone label',

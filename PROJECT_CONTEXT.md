@@ -240,7 +240,11 @@ public static String getAccountLabel(int account, String fallbackName) {
     return "#" + getAccountTagNumber(account) + " " + label;
 }
 ```
-- خروجی مثل `#1 912 345 6789` — با `PhoneFormat` خودِ تلگرام، پس برای هر کشوری درست است.
+- خروجی (فرمتِ جدید، به‌درخواستِ کاربر): `9123456789  #1` — شماره‌ی محلی **بدونِ فاصله/خط‌تیره**،
+  بعد **دو فاصله**، بعد تگِ `#N` در **آخر**. (فرمتِ قدیمی `#1 912 345 6789` بود؛ با
+  `label_format.py` یا نسخه‌ی جدیدِ `phone_labels.py`/apply_mods تعمیر می‌شود —
+  خطوطِ کلیدی: `local.replace(" ", "").replace("-", "")` و `return label + "  #" + tag`.)
+- با `PhoneFormat` خودِ تلگرام، پس برای هر کشوری درست است.
 - **فقط UIِ مدیریتیِ خودمان**؛ نام در چت/گروه/مخاطبین دست‌نخورده.
 
 ### ۶ محلِ نمایش (همه از `getAccountLabel` استفاده می‌کنند)

@@ -128,7 +128,7 @@ TAG_HELPER = (
 )
 
 PHONE_HELPER = (
-    "    // [mod] account label: \"#N <local phone number>\" for our own management UI.\n"
+    "    // [mod] account label: \"<local phone number>  #N\" for our own management UI.\n"
     "    // Uses Telegram's own PhoneFormat to find the country code prefix, so it\n"
     "    // works for any country; falls back to the display name without a phone.\n"
     "    public static String getAccountLabel(int account, String fallbackName) {\n"
@@ -140,7 +140,7 @@ PHONE_HELPER = (
     "                if (formatted != null && formatted.length() > 0) {\n"
     "                    int space = formatted.indexOf(' ');\n"
     "                    String local = space > 0 ? formatted.substring(space + 1) : formatted;\n"
-    "                    local = local.trim();\n"
+    "                    local = local.replace(\" \", \"\").replace(\"-\", \"\");\n"
     "                    if (local.startsWith(\"+\")) {\n"
     "                        local = local.substring(1);\n"
     "                    }\n"
@@ -152,7 +152,7 @@ PHONE_HELPER = (
     "        } catch (Exception e) {\n"
     "            // keep the name if the phone cannot be formatted\n"
     "        }\n"
-    "        return \"#\" + getAccountTagNumber(account) + \" \" + label;\n"
+    "        return label + \"  #\" + getAccountTagNumber(account);\n"
     "    }\n"
 )
 
@@ -176,6 +176,19 @@ def main():
                   PHONE_HELPER + "\n    public static int getActivatedAccountsCount() {")],
                 "getAccountLabel",
                 "helper: phone label")
+    # Hotfix for sources patched with the older helper version: strip spaces
+    # from the number and move the #N tag to the end (two spaces before it).
+    # On a fresh insert these are already in PHONE_HELPER and get skipped.
+    patch_first(root, "UserConfig",
+                [("                    local = local.trim();\n",
+                  '                    local = local.replace(" ", "").replace("-", "");\n')],
+                'local.replace(" ", "")',
+                "label format: no spaces in number")
+    patch_first(root, "UserConfig",
+                [('        return "#" + getAccountTagNumber(account) + " " + label;',
+                  '        return label + "  #" + getAccountTagNumber(account);')],
+                'return label + "  #" + getAccountTagNumber(account);',
+                "label format: tag at end")
 
     print("\n1) Account switcher / drawer / send-as")
     patch_first(root, "MainTabsActivity",
