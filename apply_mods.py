@@ -836,7 +836,10 @@ def main():
             "    public static volatile boolean sleepInactiveAccounts = true;\n"
             "\n"
             "    public static boolean isAccountAwake(int account) {\n"
-            "        return !sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount;\n"
+            "        if (!sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount) {\n"
+            "            return true;\n"
+            "        }\n"
+            "        return !UserConfig.getInstance(account).isClientActivated(); // logging-in accounts stay awake\n"
             "    }\n"
             "\n"
             "    public static void applyAccountSleepStates() {\n"
@@ -848,10 +851,23 @@ def main():
             "    }\n"
             "\n"
         )
+        if not file_contains(cm, "isAccountAwake"):
+            replace_once(cm,
+                         "    public static void setLangCode(String langCode) {",
+                         sleep_helpers + "    public static void setLangCode(String langCode) {",
+                         "sleep: helpers in ConnectionsManager")
+        else:
+            print("  - [sleep: helpers in ConnectionsManager] already present, skipped.")
+        # Hotfix for sources patched with the older helper: an account that is
+        # being logged in is not selected yet and must NOT be put to sleep.
         replace_once(cm,
-                     "    public static void setLangCode(String langCode) {",
-                     sleep_helpers + "    public static void setLangCode(String langCode) {",
-                     "sleep: helpers in ConnectionsManager")
+                     "        return !sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount;\n",
+                     "        if (!sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount) {\n"
+                     "            return true;\n"
+                     "        }\n"
+                     "        return !UserConfig.getInstance(account).isClientActivated(); // logging-in accounts stay awake\n",
+                     "sleep: login-aware isAccountAwake",
+                     optional=True)
         replace_once(cm,
                      "        native_setIpStrategy(currentAccount, selectedStrategy);\n"
                      "        native_setNetworkAvailable(currentAccount, ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), ApplicationLoader.isConnectionSlow());\n"

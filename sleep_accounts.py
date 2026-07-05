@@ -103,7 +103,10 @@ HELPERS = (
     "    public static volatile boolean sleepInactiveAccounts = true;\n"
     "\n"
     "    public static boolean isAccountAwake(int account) {\n"
-    "        return !sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount;\n"
+    "        if (!sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount) {\n"
+    "            return true;\n"
+    "        }\n"
+    "        return !UserConfig.getInstance(account).isClientActivated(); // logging-in accounts stay awake\n"
     "    }\n"
     "\n"
     "    public static void applyAccountSleepStates() {\n"
@@ -125,7 +128,21 @@ def main():
                  "inside) the folder that contains TMessagesProj and run again.")
     print("Project root: %s\n" % root)
 
-    print("1) Static helpers in ConnectionsManager")
+    print("0) Hotfix older sleep helper (keep logging-in accounts awake)")
+    cm_path = os.path.join(root, JAVA_BASE, FILES["ConnectionsManager"])
+    if os.path.isfile(cm_path) and "isAccountAwake" in read(cm_path):
+        patch(root, "ConnectionsManager",
+              "        return !sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount;\n",
+              "        if (!sleepInactiveAccounts || account < 0 || account == UserConfig.selectedAccount) {\n"
+              "            return true;\n"
+              "        }\n"
+              "        return !UserConfig.getInstance(account).isClientActivated(); // logging-in accounts stay awake\n",
+              "isClientActivated(); // logging-in accounts stay awake",
+              "hotfix: login-aware isAccountAwake")
+    else:
+        print("  -- no older helper found, nothing to fix")
+
+    print("\n1) Static helpers in ConnectionsManager")
     patch(root, "ConnectionsManager",
           "    public static void setLangCode(String langCode) {",
           HELPERS + "    public static void setLangCode(String langCode) {",
