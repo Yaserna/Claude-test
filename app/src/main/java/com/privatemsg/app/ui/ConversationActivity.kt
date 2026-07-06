@@ -536,6 +536,14 @@ class ConversationActivity : BaseActivity() {
             com.privatemsg.app.data.ContactsHelper(this).displayFor(to)
         binding.titleNumber.text = to
         binding.recipientRow.visibility = View.GONE
+        // If we sent from the "new message" compose screen, the list still shows the
+        // recipient suggestions — swap it for the real message list so the sent
+        // message actually appears.
+        if (binding.recycler.adapter !== adapter) {
+            binding.recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+            binding.recycler.adapter = adapter
+            activeNormalizedAddress = SecureStore.normalize(to)
+        }
         loadMessages()
     }
 }

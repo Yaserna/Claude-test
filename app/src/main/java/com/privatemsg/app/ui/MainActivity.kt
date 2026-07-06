@@ -2,6 +2,7 @@ package com.privatemsg.app.ui
 
 import android.Manifest
 import android.app.role.RoleManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.ContentObserver
@@ -157,6 +158,7 @@ class MainActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         contentResolver.unregisterContentObserver(smsObserver)
+        ioExecutor.shutdown()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -222,7 +224,23 @@ class MainActivity : BaseActivity() {
     }
 
     override fun onBackPressed() {
-        if (adapter.selectionMode) adapter.exitSelection() else super.onBackPressed()
+        when {
+            adapter.selectionMode -> adapter.exitSelection()
+            // A search is active → back clears it and returns to the full list,
+            // instead of leaving the screen stuck in the filtered state.
+            !binding.searchInput.text.isNullOrEmpty() -> clearSearch()
+            binding.searchInput.hasFocus() -> binding.searchInput.clearFocus()
+            else -> super.onBackPressed()
+        }
+    }
+
+    /** Empties the search box, drops focus, and hides the keyboard. */
+    private fun clearSearch() {
+        binding.searchInput.setText("")   // text watcher restores the full list
+        binding.searchInput.clearFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+                as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(binding.searchInput.windowToken, 0)
     }
 
     // Pull the whole list down (revealing the lock + text behind it); release to open the decoy folder.
