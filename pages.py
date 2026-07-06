@@ -91,9 +91,40 @@ def is_green(img, cx, cy):
 
 
 # ===================== Telegram =====================
-# TODO: markers and structure will be tuned once real Telegram XML dumps arrive.
+# Bot-chat structure confirmed from a real XML dump (2026-07-06):
+# - each incoming message node's text contains the message body plus its
+#   HH:MM timestamp (the surrounding words are localized, so only the
+#   digits are matched)
+# - the status-bar clock (current device time) is a TextView in the top
+#   strip of the screen, e.g. "14:27"
 
 _PHONE = re.compile(r"^\+?\d[\d\s\-]{7,}$")
+_TIME = re.compile(r"\b(\d{1,2}):(\d{2})\b")
+
+
+def read_status_clock(nodes):
+    """Current device time from the status-bar clock, as minutes since
+    midnight. The clock is the top-strip TextView whose whole text is HH:MM."""
+    for n in nodes:
+        if n.cls.endswith("TextView") and n.bounds and n.bounds[1] < 110:
+            m = _TIME.fullmatch(n.text.strip())
+            if m:
+                return int(m.group(1)) * 60 + int(m.group(2))
+    return None
+
+
+def read_tg_last_login_time(nodes, marker):
+    """Timestamp (minutes since midnight) of the bottom-most login-success
+    message in the bot chat, or None if no such message is visible."""
+    best = None
+    for n in nodes:
+        if marker in n.text and n.bounds:
+            if best is None or n.bounds[1] > best.bounds[1]:
+                best = n
+    if not best:
+        return None
+    m = _TIME.search(best.text)
+    return int(m.group(1)) * 60 + int(m.group(2)) if m else None
 
 
 def is_tg_drawer(text):

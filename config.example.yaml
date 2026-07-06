@@ -8,7 +8,8 @@ device:
 telegram:
   package: "org.telegram.messenger"
   logins_per_account: 400         # rotate account after this many successful logins
-  login_ok_marker: "CHANGE_ME"    # exact success-message text in Telegram (from XML dump)
+  login_ok_marker: "You have successfully logged into Acki Nacki"
+  fresh_window_minutes: 2         # message counts only if its HH:MM is this close to the clock
   drawer_open_desc: "Open navigation menu"   # content-desc of the hamburger button
   drawer_open_ratio: [0.06, 0.045]           # fallback: ratio tap on the hamburger
   accounts_toggle_ratio: [0.88, 0.17]        # arrow that expands the accounts list (tune from XML)
@@ -28,6 +29,7 @@ waits:
   name_no_text: 10
   tg_render: 2          # wait after opening Telegram
   tg_switch_wait: 3     # wait after tapping another account
+  tg_login_ok_timeout: 15   # max seconds to wait for a fresh success message
 
 tuning:
   name_poll_gap: 0.7

@@ -481,22 +481,39 @@ class Bot:
         return digits or None
 
     def _tg_after_login(self):
-        """Called after every ZK round-trip to Telegram: if the success message
-        is on screen, count it; at the limit, rotate the account."""
-        marker = self.tg.get("login_ok_marker")
-        if not marker or marker == "CHANGE_ME":
-            return  # real marker not configured yet (waiting for XML)
-        nodes = self.dev.dump_nodes()
-        if marker not in self.dev.all_text(nodes):
-            return
-        self.tg_login_count += 1
-        limit = self.tg.get("logins_per_account", 400)
-        self.log.info("TG: login success %d/%d (account=%s)",
-                      self.tg_login_count, limit, self.current_account)
-        if self.tg_login_count >= limit:
-            # counter is not reset until the switch succeeds -> retried next login
-            self.switch_telegram_account()
-        self._persist()
+        """Called after every ZK round-trip to Telegram (the bot chat should be
+        on screen). A login only counts when the bottom-most success message is
+        FRESH: its HH:MM timestamp is within fresh_window_minutes of the
+        status-bar clock. Old messages left in the chat are never counted."""
+        marker = self.tg.get("login_ok_marker",
+                             "You have successfully logged into Acki Nacki")
+        window = self.tg.get("fresh_window_minutes", 2)
+        deadline = time.time() + self.waits.get("tg_login_ok_timeout", 15)
+
+        while time.time() < deadline:
+            nodes = self.dev.dump_nodes()
+            msg_time = pages.read_tg_last_login_time(nodes, marker)
+            clock = pages.read_status_clock(nodes)
+            if msg_time is not None and clock is not None:
+                age = (clock - msg_time) % (24 * 60)
+                if age <= window:
+                    self.tg_login_count += 1
+                    limit = self.tg.get("logins_per_account", 400)
+                    self.log.info("TG: fresh login message at %02d:%02d -> "
+                                  "count %d/%d (account=%s)",
+                                  msg_time // 60, msg_time % 60,
+                                  self.tg_login_count, limit, self.current_account)
+                    if self.tg_login_count >= limit:
+                        # counter is not reset until the switch succeeds,
+                        # so it is retried on the next login
+                        self.switch_telegram_account()
+                    self._persist()
+                    return
+            time.sleep(1.5)
+
+        self.log.info("TG: no FRESH login-success message within timeout "
+                      "(last=%s clock=%s) -> not counted",
+                      msg_time, clock)
 
     def switch_telegram_account(self):
         """Rotate to the next account in the Telegram side-menu list.
