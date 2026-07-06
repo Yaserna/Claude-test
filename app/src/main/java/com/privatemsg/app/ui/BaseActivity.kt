@@ -11,7 +11,6 @@ import android.provider.Telephony
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.privatemsg.app.App
 import com.privatemsg.app.R
 import java.util.Locale
 
@@ -61,30 +60,45 @@ abstract class BaseActivity : AppCompatActivity() {
     /** Hidden-section screens override this so they auto-close when the app is backgrounded. */
     protected open val leavesToMainOnBackground: Boolean get() = false
 
+    override fun onStart() {
+        super.onStart()
+        // Count how many hidden-section screens are currently on screen.
+        if (leavesToMainOnBackground) startedHiddenCount++
+    }
+
     override fun onStop() {
         super.onStop()
-        if (leavesToMainOnBackground) {
-            // Check after the lifecycle settles: if the whole app went to the
-            // background (home, app switch, screen lock), lock the hidden section
-            // and finish this screen. We simply finish (never re-launch Main) so no
-            // duplicate/stale activities are ever left behind in the back stack.
-            window.decorView.post {
-                if (!isFinishing && !App.inForeground) {
-                    hiddenLocked = true
-                    finish()
-                }
+        if (!leavesToMainOnBackground) return
+        startedHiddenCount--
+        // A configuration change (rotation / display-size) recreates the SAME screen —
+        // that isn't leaving the hidden section, so don't lock.
+        if (isChangingConfigurations) return
+        // Lock the moment no hidden screen is on top anymore. This covers BOTH:
+        //  - the app going to the background (home / app switch / screen lock), and
+        //  - navigating to a NON-hidden screen inside the app (e.g. tapping a normal
+        //    message's notification opens that conversation).
+        // Any hidden screen still sitting in the back stack will finish itself in
+        // onResume because hiddenLocked is now true — so Back can never re-enter it.
+        window.decorView.post {
+            if (!isFinishing && startedHiddenCount <= 0) {
+                hiddenLocked = true
+                finish()
             }
         }
     }
 
     companion object {
         /**
-         * True once the app was backgrounded while inside the hidden section. It is
-         * cleared only after a successful PIN/fingerprint unlock (PinActivity), so a
-         * stray hidden activity can never be reached again with the back button.
+         * True once the app left the hidden section (backgrounded, or moved to a
+         * non-hidden screen). Cleared only after a successful PIN/fingerprint unlock
+         * (PinActivity), so a stray hidden activity can never be reached again with Back.
          */
         @Volatile
         var hiddenLocked: Boolean = false
+
+        /** Number of hidden-section screens currently started (visible). */
+        @Volatile
+        private var startedHiddenCount: Int = 0
     }
 
     /** Menu shown when a number (phone / card / OTP) inside a message is tapped. */
