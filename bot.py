@@ -566,19 +566,26 @@ class Bot:
                     return i
         return self.account_index % len(accounts)
 
-    def _tg_open_account_switcher(self):
-        """On the Telegram main page: find the bottom-bar profile tab
-        (structurally, right-most tab item) and long-press it (~300ms)
-        to open the account switcher."""
-        tab = None
-        for _ in range(3):
-            nodes = self.dev.dump_nodes()
-            tab = pages.find_tg_profile_tab(nodes, self.dev.w, self.dev.h)
+    def _tg_wait_main_page(self):
+        """Block until the Telegram bottom bar (profile tab) is actually
+        rendered, so we never act before the app has finished loading.
+        Returns the profile-tab node, or None on timeout."""
+        timeout = self.waits.get("tg_main_ready_timeout", 30)
+        end = time.time() + timeout
+        while time.time() < end:
+            tab = pages.find_tg_profile_tab(self.dev.dump_nodes(),
+                                            self.dev.w, self.dev.h)
             if tab:
-                break
-            time.sleep(1)
+                return tab
+            time.sleep(0.5)
+        return None
+
+    def _tg_open_account_switcher(self):
+        """On the Telegram main page: wait for the bottom-bar profile tab to be
+        loaded, then long-press it (~300ms) to open the account switcher."""
+        tab = self._tg_wait_main_page()
         if not tab:
-            self.log.error("TG: profile tab not found on main page")
+            self.log.error("TG: bottom bar / profile tab did not load in time")
             return False
         dur = self.tg.get("profile_longpress_ms", 300) / 1000.0
         self.log.info("TG: long-pressing profile tab at %s for %.0fms",

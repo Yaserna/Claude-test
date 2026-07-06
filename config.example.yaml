@@ -29,6 +29,7 @@ waits:
   tg_render: 2          # wait after opening Telegram
   tg_switch_wait: 3     # wait after tapping another account
   tg_login_ok_timeout: 15   # max seconds to wait for a fresh success message
+  tg_main_ready_timeout: 30 # max seconds to wait for the Telegram bottom bar to load
 
 tuning:
   name_poll_gap: 0.7
