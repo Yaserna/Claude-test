@@ -54,6 +54,9 @@ class Bot:
         self.tg_login_count = st.get("tg_login_count", 0)
         self.account_index = st.get("account_index", 0)
         self.current_account = st.get("current_account")
+        # HH:MM (minutes) of the last success message we already counted, so a
+        # stale message from a previous login is never counted again
+        self.tg_last_login_min = st.get("tg_last_login_min")
         if self.current_account:
             self.storage.set_account(self.current_account)
 
@@ -97,6 +100,7 @@ class Bot:
             "stats": self.stats,
             "wallet_name": self.wallet_name,
             "tg_login_count": self.tg_login_count,
+            "tg_last_login_min": self.tg_last_login_min,
             "account_index": self.account_index,
             "current_account": self.current_account,
             "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -457,25 +461,33 @@ class Bot:
         return digits or None
 
     def _tg_after_login(self):
-        """Called after every ZK round-trip to Telegram (the bot chat should be
-        on screen). A login only counts when the bottom-most success message is
-        FRESH: its HH:MM timestamp is within fresh_window_minutes of the
-        status-bar clock. Old messages left in the chat are never counted."""
+        """Wait (by OBSERVING the screen) until a genuinely NEW login-success
+        message appears in the Telegram bot chat, then count it. 'New' means:
+        the bottom-most success message is FRESH (its HH:MM is within
+        fresh_window_minutes of the status-bar clock) AND its timestamp differs
+        from the last message we already counted -- so a stale message left in
+        the chat from the previous login is never mistaken for this one.
+        This is what makes the flow wait for the login instead of relaunching
+        the wallet too early."""
         marker = self.tg.get("login_ok_marker",
                              "You have successfully logged into Acki Nacki")
         window = self.tg.get("fresh_window_minutes", 2)
-        deadline = time.time() + self.waits.get("tg_login_ok_timeout", 15)
+        deadline = time.time() + self.waits.get("tg_login_ok_timeout", 30)
 
+        msg_time = clock = None
         while time.time() < deadline:
             nodes = self.dev.dump_nodes()
             msg_time = pages.read_tg_last_login_time(nodes, marker)
             clock = pages.read_status_clock(nodes)
             if msg_time is not None and clock is not None:
                 age = (clock - msg_time) % (24 * 60)
-                if age <= window:
+                is_fresh = age <= window
+                is_new = msg_time != self.tg_last_login_min
+                if is_fresh and is_new:
+                    self.tg_last_login_min = msg_time
                     self.tg_login_count += 1
                     limit = self.tg.get("logins_per_account", 400)
-                    self.log.info("TG: fresh login message at %02d:%02d -> "
+                    self.log.info("TG: NEW login message at %02d:%02d -> "
                                   "count %d/%d (account=%s)",
                                   msg_time // 60, msg_time % 60,
                                   self.tg_login_count, limit, self.current_account)
@@ -487,11 +499,11 @@ class Bot:
                                       "scheduled after the current wallet is saved")
                     self._persist()
                     return
-            time.sleep(1.5)
+            time.sleep(1.0)
 
-        self.log.info("TG: no FRESH login-success message within timeout "
-                      "(last=%s clock=%s) -> not counted",
-                      msg_time, clock)
+        self.log.info("TG: no NEW login-success message within timeout "
+                      "(last_seen=%s counted=%s clock=%s) -> not counted",
+                      msg_time, self.tg_last_login_min, clock)
 
     def switch_telegram_account(self):
         """Rotate to the next account in the Telegram side-menu list.
