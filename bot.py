@@ -549,36 +549,46 @@ class Bot:
         if not self._tg_open_account_switcher():
             return False
 
-        # step 2: pick the next account in the opened switcher
-        # TODO: selectors will be finalized from the next XML dump (switcher open)
-        nodes = self.dev.dump_nodes()
-        accounts = pages.read_tg_accounts(nodes)
+        # step 2 (confirmed by a real dump): rows look like '9035505150  #1';
+        # the active account is the one whose avatar has the selection ring
+        accounts = pages.read_tg_switcher_accounts(self.dev.dump_nodes())
         if len(accounts) < 2:
-            self.log.error("TG: fewer than 2 accounts found in switcher: %s",
-                           [a.text for a in accounts])
+            self.log.error("TG: fewer than 2 accounts in switcher: %s",
+                           [(a["phone"], a["row"]) for a in accounts])
             return False
 
-        self.account_index = (self.account_index + 1) % len(accounts)
-        target = accounts[self.account_index]
-        self.log.info("TG: tapping account #%d '%s'", self.account_index, target.text)
-        self.dev.tap_node(target)
+        cur = self._current_switcher_index(accounts)
+        nxt = (cur + 1) % len(accounts)
+        target = accounts[nxt]
+        self.log.info("TG: switching account %s (row #%d) -> %s (row #%d)",
+                      accounts[cur]["phone"], accounts[cur]["row"],
+                      target["phone"], target["row"])
+        self.dev.tap_node(target["item"])
         time.sleep(self.waits.get("tg_switch_wait", 3))
 
-        # step 3: read the new account's phone -> output file name
-        # TODO: exact location pending the next dumps
-        phone = pages.read_tg_current_phone(self.dev.dump_nodes())
-        acct = self._normalize_account(phone, self.tg.get("strip_country_code", ""))
-        if not acct:
-            self.log.error("TG: could not read new account phone")
-            return False
-
+        # the output file name is the phone number ONLY (no row number)
+        acct = self._normalize_account(target["phone"],
+                                       self.tg.get("strip_country_code", ""))
         self.current_account = acct
+        self.account_index = nxt
         self.storage.set_account(acct)
         self.tg_login_count = 0
         self._persist()
         self.log.info("TG: switched to account '%s' -> wallets file %s",
                       acct, self.storage.wallets)
         return True
+
+    def _current_switcher_index(self, accounts):
+        """Index of the active account in the switcher list: the ring-marked
+        row; falls back to the stored phone, then the stored index."""
+        for i, a in enumerate(accounts):
+            if a["selected"]:
+                return i
+        if self.current_account:
+            for i, a in enumerate(accounts):
+                if a["phone"] == self.current_account:
+                    return i
+        return self.account_index % len(accounts)
 
     def _tg_open_account_switcher(self):
         """On the Telegram main page: find the bottom-bar profile tab
@@ -602,22 +612,26 @@ class Bot:
         return True
 
     def _tg_detect_current_account(self):
-        """At startup: read the active Telegram account so the output file
-        is correct from the very first wallet.
-        TODO: reading the phone from the switcher popup pending the next dump."""
+        """At startup: open the switcher and find the ring-marked account so
+        the output file is correct from the very first wallet."""
         pkg = self.tg.get("package", "org.telegram.messenger")
         self.dev.app_restart(pkg)
         time.sleep(self.waits.get("tg_render", 2))
         if self._tg_open_account_switcher():
-            phone = pages.read_tg_current_phone(self.dev.dump_nodes())
-            acct = self._normalize_account(phone, self.tg.get("strip_country_code", ""))
-            if acct:
+            accounts = pages.read_tg_switcher_accounts(self.dev.dump_nodes())
+            sel = next((i for i, a in enumerate(accounts) if a["selected"]), None)
+            if sel is not None:
+                acct = self._normalize_account(accounts[sel]["phone"],
+                                               self.tg.get("strip_country_code", ""))
                 self.current_account = acct
+                self.account_index = sel
                 self.storage.set_account(acct)
                 self._persist()
-                self.log.info("TG: current account detected: '%s'", acct)
+                self.log.info("TG: current account detected: '%s' (row #%d)",
+                              acct, accounts[sel]["row"])
             else:
-                self.log.warning("TG: current account phone not found in switcher")
+                self.log.warning("TG: ring-marked account not found in switcher "
+                                 "(%d rows read)", len(accounts))
             self.dev.back()      # close the switcher popup
         self.dev.app_start()     # back to the wallet app
 

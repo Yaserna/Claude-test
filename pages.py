@@ -98,8 +98,8 @@ def is_green(img, cx, cy):
 # - the status-bar clock (current device time) is a TextView in the top
 #   strip of the screen, e.g. "14:27"
 
-_PHONE = re.compile(r"^\+?\d[\d\s\-]{7,}$")
 _TIME = re.compile(r"\b(\d{1,2}):(\d{2})\b")
+_ACCT_ROW = re.compile(r"^(\d{7,15})\s+#(\d+)\s*$")
 
 
 def read_status_clock(nodes):
@@ -142,35 +142,43 @@ def find_tg_profile_tab(nodes, w, h):
     return best
 
 
-def read_tg_current_phone(nodes):
-    """Current account's phone in the drawer header (first phone-like text)."""
-    for n in nodes:
-        t = n.text.strip()
-        if t and _PHONE.match(t):
-            return t
-    return None
-
-
-def read_tg_accounts(nodes):
-    """Account items in the expanded drawer: texts between the header phone
-    and the 'Add Account' item, sorted top to bottom.
-    Returns a list of Nodes (so they can be tapped directly)."""
-    phone = add = None
-    for n in nodes:
-        t = n.text.strip()
-        if phone is None and t and _PHONE.match(t) and n.bounds:
-            phone = n
-        if t == "Add Account" and n.bounds:
-            add = n
-    if not add:
-        return []
-    top = phone.bounds[3] if phone else 0
+def read_tg_switcher_accounts(nodes):
+    """Account rows of the switcher popup (opened by long-pressing the
+    profile tab). Confirmed by a real dump:
+    - each row is a clickable LinearLayout containing a TextView like
+      '9035505150  #1' (phone, then #row-number)
+    - the ACTIVE account's avatar is drawn with a selection ring, which
+      makes its inner avatar View a few pixels smaller than the others
+    Returns dicts sorted by row number:
+    {phone, row, item (tappable Node), avatar_w, selected}."""
+    items = [n for n in nodes
+             if n.clickable and n.cls == "android.widget.LinearLayout" and n.bounds]
     out = []
     for n in nodes:
-        t = n.text.strip()
-        if not t or not n.bounds or n is phone or n is add:
+        m = _ACCT_ROW.match(n.text.strip()) if n.text else None
+        if not m or not n.bounds:
             continue
-        if top <= n.bounds[1] < add.bounds[1] and not _PHONE.match(t):
-            out.append(n)
-    out.sort(key=lambda n: n.bounds[1])
+        t = n.bounds
+        item = next((it for it in items
+                     if it.bounds[0] <= t[0] and it.bounds[1] <= t[1] and
+                        it.bounds[2] >= t[2] and it.bounds[3] >= t[3]), None)
+        if not item:
+            continue
+        # smallest square View on the left edge of the row = inner avatar view
+        avatar_w = None
+        for v in nodes:
+            if v.cls == "android.view.View" and v.bounds:
+                vb = v.bounds
+                if (item.bounds[0] <= vb[0] and vb[2] <= item.bounds[0] + 200 and
+                        item.bounds[1] <= vb[1] and vb[3] <= item.bounds[3]):
+                    w = vb[2] - vb[0]
+                    if avatar_w is None or w < avatar_w:
+                        avatar_w = w
+        out.append({"phone": m.group(1), "row": int(m.group(2)),
+                    "item": item, "avatar_w": avatar_w})
+    out.sort(key=lambda a: a["row"])
+    widths = [a["avatar_w"] for a in out if a["avatar_w"]]
+    ringed = min(widths) if widths and min(widths) < max(widths) - 4 else None
+    for a in out:
+        a["selected"] = (ringed is not None and a["avatar_w"] == ringed)
     return out
