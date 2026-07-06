@@ -401,6 +401,11 @@ class Bot:
         self.storage.remove_name(wn)
         self.dev.back()
         time.sleep(self.waits["render"])
+        # The wallet is now fully created and saved. If the per-account login
+        # limit was reached during this cycle, stop here and switch the
+        # Telegram account before any new wallet is started.
+        if self.tg_login_count >= self.tg.get("logins_per_account", 400):
+            self.switch_telegram_account()
 
     def handle_settings(self, nodes):
         for s in range(6):
@@ -504,9 +509,11 @@ class Bot:
                                   msg_time // 60, msg_time % 60,
                                   self.tg_login_count, limit, self.current_account)
                     if self.tg_login_count >= limit:
-                        # counter is not reset until the switch succeeds,
-                        # so it is retried on the next login
-                        self.switch_telegram_account()
+                        # do NOT switch here: the wallet currently in progress
+                        # must be created and saved first. The switch runs in
+                        # handle_seed right after the wallet is saved.
+                        self.log.info("TG: limit reached -> account switch is "
+                                      "scheduled after the current wallet is saved")
                     self._persist()
                     return
             time.sleep(1.5)
@@ -517,15 +524,28 @@ class Bot:
 
     def switch_telegram_account(self):
         """Rotate to the next account in the Telegram side-menu list.
-        On success the counter resets and the output file changes."""
+        Flow (as specified): close the wallet app, restart Telegram once so it
+        lands on its main page, switch the account there, then reopen the
+        wallet. On success the counter resets and the output file changes."""
         pkg = self.tg.get("package", "org.telegram.messenger")
         self.log.info("TG: switching account (logins=%d, index=%d)",
                       self.tg_login_count, self.account_index)
-        self.dev.app_start(pkg)
+        self.dev.app_stop()          # close the wallet app
+        self.dev.app_restart(pkg)    # restart Telegram -> its main page
         time.sleep(self.waits.get("tg_render", 2))
 
+        ok = self._do_account_switch()
+        self.dev.app_start()         # back to the wallet app either way
+        if not ok:
+            # counter stays >= limit, so the switch is retried after the
+            # next wallet is saved
+            self.log.error("TG: account switch failed -> will retry after "
+                           "the next wallet")
+        return ok
+
+    def _do_account_switch(self):
         if not self._tg_open_drawer():
-            self.log.error("TG: drawer did not open -> keeping current account")
+            self.log.error("TG: drawer did not open")
             return False
         if not self._tg_expand_accounts():
             self.log.error("TG: accounts list did not expand")
@@ -548,7 +568,7 @@ class Bot:
         phone = self._tg_read_header_phone()
         acct = self._normalize_account(phone, self.tg.get("strip_country_code", ""))
         if not acct:
-            self.log.error("TG: could not read new account phone -> keeping old file")
+            self.log.error("TG: could not read new account phone")
             return False
 
         self.current_account = acct
