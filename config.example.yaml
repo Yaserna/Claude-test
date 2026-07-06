@@ -34,7 +34,7 @@ waits:
 tuning:
   name_poll_gap: 0.7
   checkbox_offset_ratio: 0.08
-  gear_region: [0.82, 0.03, 0.99, 0.12]
+  gear_region: [0.02, 0.27, 0.15, 0.35]   # settings gear = left button on HOME (bounds ~[35,696][133,792])
 
 files:
   names: "names.txt"
