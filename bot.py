@@ -149,33 +149,34 @@ class Bot:
         self.log.info("WELCOME -> Create new wallet (no delay)")
 
     def handle_login(self, nodes):
-        # customization: tap Telegram ZK Login immediately, no pause
+        # tap Telegram ZK Login immediately, no fixed pause
         tapped = self.dev.tap_text(nodes, "Telegram ZK Login", contains=True, pause=False)
-        self.log.info("LOGIN -> Telegram ZK Login (no delay) tapped=%s, waiting %ss",
-                      tapped, self.waits["telegram"])
-        time.sleep(self.waits["telegram"])
+        self.log.info("LOGIN -> Telegram ZK Login tapped=%s", tapped)
 
-        # Telegram interaction: count successful logins and rotate the
-        # account when the per-account limit is reached
+        # Count the login by OBSERVING the fresh success message in Telegram.
+        # _tg_after_login polls until the message appears (or its timeout),
+        # so there is no fixed delay here. It also rotates the account when
+        # the per-account limit is reached.
         try:
             self._tg_after_login()
         except Exception:
             self.log.exception("TG: post-login handling failed")
 
+        # relaunch the wallet app, then poll the page until we OBSERVE that we
+        # left the ZK/LOGIN screen (no fixed delay). If it is still LOGIN after
+        # login_recheck seconds, restart from scratch.
         self.log.info("relaunching wallet app")
         self.dev.app_start()
-
-        # customization: wait, then verify we actually left the ZK/LOGIN page;
-        # if still there, restart the app and start over
-        recheck = self.waits.get("login_recheck", 20)
-        self.log.info("waiting %ss after relaunch, then verifying we left ZK", recheck)
-        time.sleep(recheck)
-        page, _ = self.peek()
-        if page == "LOGIN":
-            self.log.warning("still on ZK/LOGIN after relaunch -> restart from scratch")
-            self.restart_app("stuck on ZK login")
-        else:
-            self.log.info("left ZK login -> now on %s", page)
+        timeout = self.waits.get("login_recheck", 20)
+        end = time.time() + timeout
+        while time.time() < end:
+            page, _ = self.peek()
+            if page != "LOGIN":
+                self.log.info("left ZK login -> now on %s", page)
+                return
+            time.sleep(0.5)
+        self.log.warning("still on ZK/LOGIN after %ss -> restart from scratch", timeout)
+        self.restart_app("stuck on ZK login")
 
     def _name_status(self, nodes):
         """Returns the status text under the name field ('' if none)."""
