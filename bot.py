@@ -557,8 +557,14 @@ class Bot:
                            [(a["phone"], a["row"]) for a in accounts])
             return False
 
+        # rotation is capped at max_accounts rows (default 10): after the
+        # 10th account (or the last one, if fewer) it wraps back to row #1
+        cap = max(2, int(self.tg.get("max_accounts", 10)))
+        n = min(len(accounts), cap)
         cur = self._current_switcher_index(accounts)
-        nxt = (cur + 1) % len(accounts)
+        if cur >= n:
+            cur = n - 1
+        nxt = (cur + 1) % n
         target = accounts[nxt]
         self.log.info("TG: switching account %s (row #%d) -> %s (row #%d)",
                       accounts[cur]["phone"], accounts[cur]["row"],
@@ -623,6 +629,16 @@ class Bot:
             if sel is not None:
                 acct = self._normalize_account(accounts[sel]["phone"],
                                                self.tg.get("strip_country_code", ""))
+                if self.current_account and acct != self.current_account:
+                    # active account changed since the last run (e.g. manually)
+                    # -> the stored counter belongs to the old account
+                    self.log.info("TG: active account changed '%s' -> '%s' "
+                                  "-> login counter reset",
+                                  self.current_account, acct)
+                    self.tg_login_count = 0
+                else:
+                    self.log.info("TG: resuming login counter at %d",
+                                  self.tg_login_count)
                 self.current_account = acct
                 self.account_index = sel
                 self.storage.set_account(acct)
@@ -665,7 +681,10 @@ class Bot:
 
     def run(self):
         self.log.info("=============== bot start ===============")
-        if self.tg.get("detect_account_on_start") and not self.current_account:
+        # ALWAYS at startup: restart Telegram once, read the ring-marked
+        # account, bind the output file to it, then launch the wallet and
+        # continue the loop (the login counter is restored from state.json)
+        if self.tg.get("detect_account_on_start", True):
             try:
                 self._tg_detect_current_account()
             except Exception:

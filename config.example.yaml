@@ -12,7 +12,8 @@ telegram:
   fresh_window_minutes: 2         # message counts only if its HH:MM is this close to the clock
   profile_longpress_ms: 300       # long-press duration on the bottom-bar profile tab
   strip_country_code: "98"        # 989035505155 -> 9035505155
-  detect_account_on_start: true   # read the active account at startup
+  detect_account_on_start: true   # restart Telegram at startup and read the active account
+  max_accounts: 10                # rotation wraps back to row 1 after this many accounts
 
 waits:
   action_delay: 0.3
