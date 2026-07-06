@@ -148,6 +148,11 @@ class SecureStore(context: Context) {
         get() = prefs.getBoolean(KEY_FINGERPRINT, false)
         set(v) = prefs.edit().putBoolean(KEY_FINGERPRINT, v).apply()
 
+    /** Play a sound for hidden (decoy) notifications. Off by default (vibration only). */
+    var decoySoundEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DECOY_SOUND, false)
+        set(v) = prefs.edit().putBoolean(KEY_DECOY_SOUND, v).apply()
+
     // ---- Bubble colors ----
 
     /** Background color of messages I send (default Mi green). */
@@ -206,6 +211,7 @@ class SecureStore(context: Context) {
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_UI_SCALE = "ui_scale"
         private const val KEY_FINGERPRINT = "fingerprint_unlock"
+        private const val KEY_DECOY_SOUND = "decoy_sound"
         private const val KEY_SENT_COLOR = "sent_bubble_color"
         private const val KEY_RECEIVED_COLOR = "received_bubble_color"
 

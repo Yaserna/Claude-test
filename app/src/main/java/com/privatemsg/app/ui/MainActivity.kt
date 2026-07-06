@@ -40,7 +40,10 @@ class MainActivity : BaseActivity() {
     private var longFired = false
     private val hiddenRunnable = Runnable {
         longFired = true
-        startActivity(Intent(this, PinActivity::class.java))
+        // First-time setup ONLY: while no secret code exists yet, a long-press on +
+        // opens the hidden section so the code can be created. Once a code is set,
+        // this entrance is disabled — the only way in is typing the code in search.
+        if (!secure.hasPin()) startActivity(Intent(this, PinActivity::class.java))
     }
     private val settingsHandler = Handler(Looper.getMainLooper())
     private var settingsLongFired = false
@@ -107,6 +110,13 @@ class MainActivity : BaseActivity() {
                 }
                 else -> false
             }
+        }
+
+        // Secret "Private" row (only visible once the exact code is typed in search):
+        // opens the PIN screen (code / fingerprint) which then unlocks the hidden section.
+        binding.privateEntry.setOnClickListener {
+            clearSearch()
+            startActivity(Intent(this, PinActivity::class.java))
         }
 
         binding.favoritesRow.setOnClickListener {
@@ -215,6 +225,7 @@ class MainActivity : BaseActivity() {
         binding.selectAllButton.visibility = if (on) View.VISIBLE else View.GONE
         binding.cancelButton.visibility = if (on) View.VISIBLE else View.GONE
         binding.searchBar.visibility = if (on) View.GONE else View.VISIBLE
+        if (on) binding.privateEntry.visibility = View.GONE
         binding.favoritesRow.visibility = if (on) View.GONE else View.VISIBLE
         binding.selectionBar.visibility = if (on) View.VISIBLE else View.GONE
         binding.fab.visibility = if (on) View.GONE else View.VISIBLE
@@ -290,7 +301,16 @@ class MainActivity : BaseActivity() {
     }
 
     private fun applyFilter(query: String) {
-        val q = query.trim().lowercase()
+        val raw = query.trim()
+        // Reveal the hidden "Private" entry only when the typed text is exactly the
+        // secret code. This is the sole entrance to the hidden section once a code is set.
+        // Normalize to Latin digits so a Persian-keyboard "۱۲۳۴" still matches the code.
+        val code = raw.toLatinDigits()
+        binding.privateEntry.visibility =
+            if (code.isNotEmpty() && secure.hasPin() && secure.checkPin(code)) View.VISIBLE
+            else View.GONE
+
+        val q = raw.lowercase()
         if (q.isEmpty()) {
             adapter.submit(allConvos)
             return

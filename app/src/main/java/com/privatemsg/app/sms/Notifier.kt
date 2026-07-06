@@ -23,6 +23,9 @@ object Notifier {
     // Separate channel for decoy notifications: vibrate but NO sound, so a hidden
     // message never makes an audible alert (only the real ones do).
     private const val DECOY_CHANNEL_ID = "decoy_sms_silent"
+    // Optional channel used when the user turns decoy sound ON (channels can't
+    // change their sound after creation, so a sound variant needs its own id).
+    private const val DECOY_SOUND_CHANNEL_ID = "decoy_sms_sound"
 
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -47,6 +50,20 @@ object Notifier {
             )
             channel.setSound(null, null)   // no sound
             channel.enableVibration(true)  // vibration only
+            context.getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
+        }
+    }
+
+    /** Channel for decoy notifications with sound on (used when the user enables it). */
+    private fun ensureDecoySoundChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                DECOY_SOUND_CHANNEL_ID,
+                "Messages",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            channel.enableVibration(true)
             context.getSystemService(NotificationManager::class.java)
                 .createNotificationChannel(channel)
         }
@@ -219,7 +236,9 @@ object Notifier {
      * (never the hidden section).
      */
     fun showDecoy(context: Context, secure: SecureStore, address: String) {
-        ensureDecoyChannel(context)
+        val soundOn = secure.decoySoundEnabled
+        if (soundOn) ensureDecoySoundChannel(context) else ensureDecoyChannel(context)
+        val channelId = if (soundOn) DECOY_SOUND_CHANNEL_ID else DECOY_CHANNEL_ID
 
         // Each hidden number can have its own decoy (falls back to the global one).
         val name = secure.decoyNameFor(address).ifBlank { context.getString(R.string.app_name) }
@@ -255,7 +274,7 @@ object Notifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, DECOY_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_message)
             .setColor(accentColor(context))
             .setContentTitle(name)
@@ -265,9 +284,13 @@ object Notifier {
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
-        // On pre-O devices the channel doesn't apply; vibrate but stay silent here.
+        // On pre-O devices the channel doesn't apply; set sound/vibration here to match.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE).setSound(null)
+            if (soundOn) {
+                builder.setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_VIBRATE)
+            } else {
+                builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE).setSound(null)
+            }
         }
 
         notify(context, notifId, builder)

@@ -189,6 +189,7 @@ class HiddenActivity : BaseActivity() {
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         menu.findItem(R.id.action_fingerprint)?.isChecked = secure.fingerprintEnabled
+        menu.findItem(R.id.action_decoy_sound)?.isChecked = secure.decoySoundEnabled
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -204,6 +205,11 @@ class HiddenActivity : BaseActivity() {
             }
             R.id.action_fingerprint -> {
                 toggleFingerprint(item)
+                true
+            }
+            R.id.action_decoy_sound -> {
+                secure.decoySoundEnabled = !secure.decoySoundEnabled
+                item.isChecked = secure.decoySoundEnabled
                 true
             }
             R.id.action_change_pin -> {

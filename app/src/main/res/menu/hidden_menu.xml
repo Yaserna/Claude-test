@@ -17,6 +17,11 @@
         android:title="@string/fingerprint_unlock"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_decoy_sound"
+        android:checkable="true"
+        android:title="@string/decoy_sound"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_change_pin"
         android:title="@string/change_pin"
         app:showAsAction="never" />

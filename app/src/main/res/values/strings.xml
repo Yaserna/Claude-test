@@ -52,6 +52,7 @@
     <string name="n_new_messages">%1$d پیام جدید</string>
     <string name="search_hint">جستجوی پیام‌ها</string>
     <string name="delivered">دریافت شد</string>
+    <string name="private_entry">Private</string>
 
     <string name="hidden_title">مخفی</string>
     <string name="add_hidden">افزودن شماره‌ی مخفی</string>
@@ -77,6 +78,7 @@
     <string name="fingerprint_title">برای ورود به بخش مخفی اثر انگشت را بزنید</string>
     <string name="fingerprint_use_pin">استفاده از رمز</string>
     <string name="fingerprint_unavailable">اثر انگشت روی این گوشی در دسترس نیست</string>
+    <string name="decoy_sound">صدای اعلان مخفی</string>
 
     <string name="decoy_title">اعلان تله</string>
     <string name="decoy_hint">وقتی یک مخاطب مخفی به شما پیام می‌دهد، اعلان این اسم و متن جعلی را نشان می‌دهد. با زدن روی آن، به‌جای بخش مخفی، گفتگوی زیر باز می‌شود.</string>
