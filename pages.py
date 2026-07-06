@@ -127,11 +127,19 @@ def read_tg_last_login_time(nodes, marker):
     return int(m.group(1)) * 60 + int(m.group(2)) if m else None
 
 
-def is_tg_drawer(text):
-    """Is the Telegram side menu open? (based on fixed menu items)"""
-    if not text:
-        return False
-    return "Settings" in text and ("Contacts" in text or "Saved Messages" in text)
+def find_tg_profile_tab(nodes, w, h):
+    """Profile tab in the bottom bar of the Telegram main page (confirmed by a
+    real dump: 4 tab items in the bottom strip; profile is the right-most).
+    Found structurally - no dependency on the localized label text.
+    Long-pressing it opens the account switcher."""
+    best = None
+    for n in nodes:
+        if n.clickable and n.cls == "android.widget.FrameLayout" and n.bounds:
+            x1, y1, x2, y2 = n.bounds
+            if y1 > h * 0.85 and (y2 - y1) < h * 0.1 and (x2 - x1) < w * 0.3:
+                if best is None or n.center[0] > best.center[0]:
+                    best = n
+    return best
 
 
 def read_tg_current_phone(nodes):

@@ -544,17 +544,17 @@ class Bot:
         return ok
 
     def _do_account_switch(self):
-        if not self._tg_open_drawer():
-            self.log.error("TG: drawer did not open")
-            return False
-        if not self._tg_expand_accounts():
-            self.log.error("TG: accounts list did not expand")
+        # step 1 (confirmed by a real dump): long-press (~300ms) the profile
+        # tab in the bottom bar of the Telegram main page -> account switcher
+        if not self._tg_open_account_switcher():
             return False
 
+        # step 2: pick the next account in the opened switcher
+        # TODO: selectors will be finalized from the next XML dump (switcher open)
         nodes = self.dev.dump_nodes()
         accounts = pages.read_tg_accounts(nodes)
         if len(accounts) < 2:
-            self.log.error("TG: fewer than 2 accounts found: %s",
+            self.log.error("TG: fewer than 2 accounts found in switcher: %s",
                            [a.text for a in accounts])
             return False
 
@@ -564,8 +564,9 @@ class Bot:
         self.dev.tap_node(target)
         time.sleep(self.waits.get("tg_switch_wait", 3))
 
-        # read the new account's phone from the drawer header -> output file name
-        phone = self._tg_read_header_phone()
+        # step 3: read the new account's phone -> output file name
+        # TODO: exact location pending the next dumps
+        phone = pages.read_tg_current_phone(self.dev.dump_nodes())
         acct = self._normalize_account(phone, self.tg.get("strip_country_code", ""))
         if not acct:
             self.log.error("TG: could not read new account phone")
@@ -579,64 +580,46 @@ class Bot:
                       acct, self.storage.wallets)
         return True
 
+    def _tg_open_account_switcher(self):
+        """On the Telegram main page: find the bottom-bar profile tab
+        (structurally, right-most tab item) and long-press it (~300ms)
+        to open the account switcher."""
+        tab = None
+        for _ in range(3):
+            nodes = self.dev.dump_nodes()
+            tab = pages.find_tg_profile_tab(nodes, self.dev.w, self.dev.h)
+            if tab:
+                break
+            time.sleep(1)
+        if not tab:
+            self.log.error("TG: profile tab not found on main page")
+            return False
+        dur = self.tg.get("profile_longpress_ms", 300) / 1000.0
+        self.log.info("TG: long-pressing profile tab at %s for %.0fms",
+                      tab.center, dur * 1000)
+        self.dev.long_tap(*tab.center, duration=dur)
+        time.sleep(self.waits.get("tg_render", 2))
+        return True
+
     def _tg_detect_current_account(self):
         """At startup: read the active Telegram account so the output file
-        is correct from the very first wallet."""
+        is correct from the very first wallet.
+        TODO: reading the phone from the switcher popup pending the next dump."""
         pkg = self.tg.get("package", "org.telegram.messenger")
-        self.dev.app_start(pkg)
+        self.dev.app_restart(pkg)
         time.sleep(self.waits.get("tg_render", 2))
-        if not self._tg_open_drawer():
-            self.log.warning("TG: could not open drawer to detect current account")
-            self.dev.app_start()
-            return
-        phone = self._tg_read_header_phone()
-        acct = self._normalize_account(phone, self.tg.get("strip_country_code", ""))
-        if acct:
-            self.current_account = acct
-            self.storage.set_account(acct)
-            self._persist()
-            self.log.info("TG: current account detected: '%s'", acct)
-        else:
-            self.log.warning("TG: current account phone not found in drawer")
-        self.dev.back()          # close the drawer
+        if self._tg_open_account_switcher():
+            phone = pages.read_tg_current_phone(self.dev.dump_nodes())
+            acct = self._normalize_account(phone, self.tg.get("strip_country_code", ""))
+            if acct:
+                self.current_account = acct
+                self.storage.set_account(acct)
+                self._persist()
+                self.log.info("TG: current account detected: '%s'", acct)
+            else:
+                self.log.warning("TG: current account phone not found in switcher")
+            self.dev.back()      # close the switcher popup
         self.dev.app_start()     # back to the wallet app
-
-    def _tg_read_header_phone(self):
-        """Phone number in the drawer header; opens the drawer if it is closed."""
-        for _ in range(2):
-            nodes = self.dev.dump_nodes()
-            phone = pages.read_tg_current_phone(nodes)
-            if phone:
-                return phone
-            if not self._tg_open_drawer():
-                break
-        return None
-
-    def _tg_open_drawer(self):
-        """Open the Telegram side menu: try content-desc first, then a ratio tap."""
-        for _ in range(3):
-            nodes = self.dev.dump_nodes()
-            if pages.is_tg_drawer(self.dev.all_text(nodes)):
-                return True
-            btn = self.dev.find_desc(
-                nodes, self.tg.get("drawer_open_desc", "Open navigation menu"))
-            if not self.dev.tap_node(btn):
-                rx, ry = self.tg.get("drawer_open_ratio", [0.06, 0.045])
-                self.dev.tap(int(self.dev.w * rx), int(self.dev.h * ry))
-            time.sleep(1)
-        return pages.is_tg_drawer(self.dev.all_text(self.dev.dump_nodes()))
-
-    def _tg_expand_accounts(self):
-        """Expand the accounts list in the drawer header
-        ('Add Account' visible = expanded)."""
-        for _ in range(3):
-            nodes = self.dev.dump_nodes()
-            if self.dev.find(nodes, "Add Account"):
-                return True
-            rx, ry = self.tg.get("accounts_toggle_ratio", [0.88, 0.17])
-            self.dev.tap(int(self.dev.w * rx), int(self.dev.h * ry))
-            time.sleep(1)
-        return bool(self.dev.find(self.dev.dump_nodes(), "Add Account"))
 
     # ===================== main loop =====================
     def peek(self):

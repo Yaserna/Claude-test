@@ -105,6 +105,18 @@ class Device:
             return True
         return False
 
+    def long_tap(self, x, y, duration=0.3, pause=True):
+        """Long press at (x, y) for the given duration in seconds."""
+        self.d.long_click(x, y, duration)
+        if pause:
+            self._pause()
+
+    def long_tap_node(self, n, duration=0.3, pause=True):
+        if n and n.center and n.center != (0, 0):
+            self.long_tap(*n.center, duration=duration, pause=pause)
+            return True
+        return False
+
     def tap_text(self, nodes, text, contains=False, pause=True):
         return self.tap_node(self.find(nodes, text, contains), pause=pause)
 
