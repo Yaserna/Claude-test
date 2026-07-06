@@ -60,6 +60,10 @@ The user set these rules at the very start. Honor them in every reply:
 7. **Challenge the user.** If an idea is flawed, wrong, or impossible, say so
    plainly and honestly (no flattery). Tell them when something can't be done.
 8. **Reply in Persian (Farsi).** The user communicates in Persian.
+9. **PERMANENT — the 20s settings backdoor is untouchable.** Holding the settings
+   gear ~20s to enter the hidden section directly (no PIN/code) MUST stay forever.
+   Never remove, disable, weaken, or gate it in ANY future change, no matter what
+   other entry rules change. (User's explicit, standing order — Session 5.)
 
 Style that worked well: short, warm Persian messages; mark the user's actionable
 step with a 🟢; end with a single clear question; use honest "🔴 challenge"
