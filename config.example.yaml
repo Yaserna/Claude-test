@@ -1,0 +1,50 @@
+# Sample config - copy to config.yaml and adjust values.
+# CHANGE_ME values must be filled in before running.
+
+device:
+  serial: ""                      # empty = first ADB device
+  package: "CHANGE_ME"            # Acki Nacki wallet app package name
+
+telegram:
+  package: "org.telegram.messenger"
+  logins_per_account: 400         # rotate account after this many successful logins
+  login_ok_marker: "CHANGE_ME"    # exact success-message text in Telegram (from XML dump)
+  drawer_open_desc: "Open navigation menu"   # content-desc of the hamburger button
+  drawer_open_ratio: [0.06, 0.045]           # fallback: ratio tap on the hamburger
+  accounts_toggle_ratio: [0.88, 0.17]        # arrow that expands the accounts list (tune from XML)
+  strip_country_code: "98"        # 989035505155 -> 9035505155
+  detect_account_on_start: true   # read the active account at startup
+
+waits:
+  action_delay: 0.3
+  telegram: 12          # wait after tapping ZK Login (Telegram round-trip)
+  login_recheck: 20     # wait after relaunch before verifying we left ZK
+  empty_poll: 30
+  render: 1.5
+  scan_interval: 1
+  unknown_timeout: 45
+  deploy_timeout: 60
+  logout_wait: 60
+  name_no_text: 10
+  tg_render: 2          # wait after opening Telegram
+  tg_switch_wait: 3     # wait after tapping another account
+
+tuning:
+  name_poll_gap: 0.7
+  checkbox_offset_ratio: 0.08
+  gear_region: [0.82, 0.03, 0.99, 0.12]
+  max_consecutive_restarts: 10    # ZK-login restarts before "Telegram Full" stop
+
+files:
+  names: "names.txt"
+  taken: "taken.txt"
+  wallets: "wallets.txt"              # default file (used until an account is known)
+  wallets_dir: "wallets_by_account"   # per-account files: <dir>/<account>.txt
+  password: "password.txt"
+  state: "state.json"
+  stop: "stop.txt"
+
+logging:
+  dir: "logs"
+  level: "INFO"
+  stats_every: 300
