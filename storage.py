@@ -91,7 +91,7 @@ class Storage:
             return None
         idx = self.next_index()
         with open(self.wallets, "a", encoding="utf-8") as f:
-            f.write(f"{idx}. {name}\n\n{seed}\n")
+            f.write(f"{idx}. {name}\n\n{seed}\n\n")
         return idx
 
     # ---------- state ----------
