@@ -34,7 +34,6 @@ tuning:
   name_poll_gap: 0.7
   checkbox_offset_ratio: 0.08
   gear_region: [0.82, 0.03, 0.99, 0.12]
-  max_consecutive_restarts: 10    # ZK-login restarts before "Telegram Full" stop
 
 files:
   names: "names.txt"

@@ -22,12 +22,6 @@ from storage import Storage
 import pages
 
 
-class StopBot(Exception):
-    """Raised from handlers to stop the whole script cleanly
-    (e.g. too many consecutive restarts)."""
-    pass
-
-
 class Bot:
     def __init__(self, cfg, base_dir):
         self.cfg = cfg
@@ -62,12 +56,6 @@ class Bot:
         self.current_account = st.get("current_account")
         if self.current_account:
             self.storage.set_account(self.current_account)
-
-        # Counter of consecutive ZK-login restarts; reset on every wallet
-        # successfully created. When it reaches max_consecutive_restarts,
-        # the whole script stops with a "Telegram Full" message.
-        self.consecutive_restarts = 0
-        self.max_restarts = self.tuning.get("max_consecutive_restarts", 10)
 
         # page -> handler map (used by the main loop and the step tool)
         self.dispatch = {
@@ -139,21 +127,8 @@ class Bot:
             time.sleep(0.8)
         return False
 
-    def restart_app(self, why, count=False):
-        # Only ZK-login restarts are counted (count=True from handle_login).
-        # Other restarts (NAME, DEPLOY, PW_CREATE, UNKNOWN, logout, ...) are not.
-        # Too many consecutive counted restarts -> stop the whole script.
-        if count:
-            self.consecutive_restarts += 1
-            if self.consecutive_restarts >= self.max_restarts:
-                self.log.error("Telegram Full - %d consecutive restarts without "
-                               "success; stopping script", self.consecutive_restarts)
-                raise StopBot("Telegram Full")
-            self.log.warning("restart app (%d/%d): %s",
-                             self.consecutive_restarts, self.max_restarts, why)
-        else:
-            self.log.warning("restart app: %s", why)
-
+    def restart_app(self, why):
+        self.log.warning("restart app: %s", why)
         if not self.dev.healthy():
             self.log.warning("device offline -> reconnecting before restart")
             if not self.dev.ensure_connected(self.cfg["device"]["serial"]):
@@ -184,8 +159,6 @@ class Bot:
         # account when the per-account limit is reached
         try:
             self._tg_after_login()
-        except StopBot:
-            raise
         except Exception:
             self.log.exception("TG: post-login handling failed")
 
@@ -200,7 +173,7 @@ class Bot:
         page, _ = self.peek()
         if page == "LOGIN":
             self.log.warning("still on ZK/LOGIN after relaunch -> restart from scratch")
-            self.restart_app("stuck on ZK login", count=True)
+            self.restart_app("stuck on ZK login")
         else:
             self.log.info("left ZK login -> now on %s", page)
 
@@ -395,8 +368,6 @@ class Bot:
             idx = self.storage.save_wallet(wn, seed)
             if idx:
                 self.stats["created"] += 1
-                # real success -> reset the ZK-login restart counter
-                self.consecutive_restarts = 0
                 self.log.info("SAVED row %d - '%s'", idx, wn)
         self.storage.remove_name(wn)
         self.dev.back()
@@ -455,8 +426,7 @@ class Bot:
             page, _ = self.peek()
             if page == "WELCOME":
                 self.log.info("LOGOUT_CONFIRM: WELCOME reached -> logout done, restart app")
-                # normal part of the flow; don't count it as a stuck restart
-                self.restart_app("post-logout", count=False)
+                self.restart_app("post-logout")
                 return
             time.sleep(1)
         self.log.warning("LOGOUT_CONFIRM: WELCOME not reached in %ss -> restart anyway", wait)
@@ -700,10 +670,6 @@ class Bot:
                     time.sleep(self.waits["scan_interval"])
             except KeyboardInterrupt:
                 self.log.info("KeyboardInterrupt -> exiting")
-                break
-            except StopBot as e:
-                # consecutive-restart cap reached -> full stop with Telegram Full
-                self.log.error("Telegram Full -> stopping script (%s)", e)
                 break
             except Exception:
                 self.stats["errors"] += 1
