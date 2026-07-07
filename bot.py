@@ -106,6 +106,19 @@ class Bot:
             "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
         })
 
+    def _print_status(self):
+        """Live one-line terminal status (updates in place) so the login
+        progress of the current account is always visible."""
+        limit = self.tg.get("logins_per_account", 400)
+        s = self.stats
+        line = (f"[account {self.current_account or '-'}] "
+                f"logins {self.tg_login_count}/{limit} | "
+                f"created {s['created']} taken {s['taken']} errors {s['errors']}")
+        try:
+            print("\r" + line + "        ", end="", flush=True)
+        except Exception:
+            pass
+
     def _maybe_log_stats(self):
         every = self.cfg["logging"]["stats_every"]
         now = time.time()
@@ -704,6 +717,7 @@ class Bot:
             try:
                 self.step()
                 self._maybe_log_stats()
+                self._print_status()
                 if self.waits["scan_interval"]:
                     time.sleep(self.waits["scan_interval"])
             except KeyboardInterrupt:
