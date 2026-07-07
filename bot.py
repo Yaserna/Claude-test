@@ -608,38 +608,56 @@ class Bot:
         return True
 
     def _tg_detect_current_account(self):
-        """At startup: open the switcher and find the ring-marked account so
-        the output file is correct from the very first wallet."""
+        """At startup: keep restarting Telegram until the active (ring-marked)
+        account is read, so the output file is correct from the very first
+        wallet. Retries forever (with a short pause) until it succeeds."""
         pkg = self.tg.get("package", "org.telegram.messenger")
-        self.dev.app_restart(pkg)
-        time.sleep(self.waits.get("tg_render", 2))
-        if self._tg_open_account_switcher():
-            accounts = pages.read_tg_switcher_accounts(self.dev.dump_nodes())
-            sel = next((i for i, a in enumerate(accounts) if a["selected"]), None)
-            if sel is not None:
-                acct = self._normalize_account(accounts[sel]["phone"],
-                                               self.tg.get("strip_country_code", ""))
-                if self.current_account and acct != self.current_account:
-                    # active account changed since the last run (e.g. manually)
-                    # -> the stored counter belongs to the old account
-                    self.log.info("TG: active account changed '%s' -> '%s' "
-                                  "-> login counter reset",
-                                  self.current_account, acct)
-                    self.tg_login_count = 0
-                else:
-                    self.log.info("TG: resuming login counter at %d",
-                                  self.tg_login_count)
-                self.current_account = acct
-                self.account_index = sel
-                self.storage.set_account(acct)
-                self._persist()
-                self.log.info("TG: current account detected: '%s' (row #%d)",
-                              acct, accounts[sel]["row"])
-            else:
-                self.log.warning("TG: ring-marked account not found in switcher "
-                                 "(%d rows read)", len(accounts))
-            self.dev.back()      # close the switcher popup
-        self.dev.app_start()     # back to the wallet app
+        attempt = 0
+        while True:
+            if os.path.exists(self.stop_file):
+                return
+            attempt += 1
+            self.log.info("TG: startup account detection attempt %d", attempt)
+            self.dev.app_restart(pkg)
+            time.sleep(self.waits.get("tg_render", 2))
+            if self._tg_detect_once():
+                self.dev.back()          # close the switcher popup
+                self.dev.app_start()     # back to the wallet app
+                return
+            self.log.warning("TG: could not read active account -> restarting "
+                             "Telegram and retrying")
+            time.sleep(self.waits.get("tg_detect_retry", 2))
+
+    def _tg_detect_once(self):
+        """One attempt to read the active account from the switcher.
+        Returns True on success (account read + bound), False otherwise."""
+        if not self._tg_open_account_switcher():
+            return False
+        accounts = pages.read_tg_switcher_accounts(self.dev.dump_nodes())
+        sel = next((i for i, a in enumerate(accounts) if a["selected"]), None)
+        if sel is None:
+            self.log.warning("TG: ring-marked account not found (%d rows read)",
+                             len(accounts))
+            return False
+        acct = self._normalize_account(accounts[sel]["phone"],
+                                       self.tg.get("strip_country_code", ""))
+        if not acct:
+            return False
+        if self.current_account and acct != self.current_account:
+            # active account changed since the last run (e.g. manually)
+            # -> the stored counter belongs to the old account
+            self.log.info("TG: active account changed '%s' -> '%s' -> counter reset",
+                          self.current_account, acct)
+            self.tg_login_count = 0
+        else:
+            self.log.info("TG: resuming login counter at %d", self.tg_login_count)
+        self.current_account = acct
+        self.account_index = sel
+        self.storage.set_account(acct)
+        self._persist()
+        self.log.info("TG: current account detected: '%s' (row #%d)",
+                      acct, accounts[sel]["row"])
+        return True
 
     # ===================== main loop =====================
     def peek(self):
