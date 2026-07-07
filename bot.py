@@ -217,6 +217,7 @@ class Bot:
     def handle_name(self, nodes):
         gap = self.tuning["name_poll_gap"]
         no_text_timeout = self.waits.get("name_no_text", 10)
+        stuck_timeout = self.waits.get("name_stuck_timeout", 120)
 
         # outer loop: try names one by one until one is available
         while True:
@@ -233,9 +234,18 @@ class Bot:
 
             # inner loop: wait for the status text under the field
             last_text = time.time()
+            name_start = time.time()
             next_name = False
             while not next_name:
                 if os.path.exists(self.stop_file):
+                    return
+                # overall guard: a non-empty but unresolved status (e.g. a
+                # persistent 'Request failed', or 'available' whose button
+                # never enables) must not hang the loop forever
+                if time.time() - name_start > stuck_timeout:
+                    self.log.warning("NAME: stuck on '%s' for %ss -> restart",
+                                     name, stuck_timeout)
+                    self.restart_app("NAME stuck (status never resolved)")
                     return
                 time.sleep(gap)
                 n2 = self.dev.dump_nodes()
@@ -497,8 +507,13 @@ class Bot:
             msg_time, cnt = pages.read_tg_login_info(nodes, marker)
             clock = pages.read_status_clock(nodes)
             if msg_time is not None and clock is not None:
-                age = (clock - msg_time) % (24 * 60)
-                is_fresh = age <= window
+                # signed minute difference (clock - message), wrapped to
+                # [-720, 720). Fresh = the message is at most `window` minutes
+                # old, or up to 1 minute AHEAD of the device clock (covers the
+                # minute-boundary / server-vs-device skew that would otherwise
+                # drop a login).
+                diff = (clock - msg_time + 720) % (24 * 60) - 720
+                is_fresh = -1 <= diff <= window
                 # new = a different minute, OR the same minute but more
                 # same-minute bubbles than last time (a 2nd login this minute)
                 is_new = (msg_time != self.tg_last_login_min or
