@@ -158,7 +158,15 @@ class Bot:
         self.dev.app_restart()
 
     # ===================== handlers =====================
+    def _switch_due(self):
+        return self.tg_login_count >= self.tg.get("logins_per_account", 400)
+
     def handle_welcome(self, nodes):
+        # Limit already reached and no wallet is in progress yet -> switch
+        # NOW instead of starting a new wallet on a capped account.
+        if self._switch_due():
+            self.switch_telegram_account()
+            return
         if not self.storage.next_name():
             self.log.info("WELCOME: names empty; waiting %ss", self.waits["empty_poll"])
             time.sleep(self.waits["empty_poll"])
@@ -170,6 +178,13 @@ class Bot:
         self.log.info("WELCOME -> Create new wallet (no delay)")
 
     def handle_login(self, nodes):
+        # Limit already reached BEFORE passing ZK login -> do not attempt a
+        # new login on this (possibly daily-capped) account: switch NOW.
+        # This breaks the deadlock where a capped account can no longer log
+        # in, so no wallet gets saved and the post-save switch never runs.
+        if self._switch_due():
+            self.switch_telegram_account()
+            return
         # tap Telegram ZK Login immediately, no fixed pause
         tapped = self.dev.tap_text(nodes, "Telegram ZK Login", contains=True, pause=False)
         self.log.info("LOGIN -> Telegram ZK Login tapped=%s", tapped)
@@ -407,7 +422,7 @@ class Bot:
         # The wallet is now fully created and saved. If the per-account login
         # limit was reached during this cycle, stop here and switch the
         # Telegram account before any new wallet is started.
-        if self.tg_login_count >= self.tg.get("logins_per_account", 400):
+        if self._switch_due():
             self.switch_telegram_account()
 
     def handle_settings(self, nodes):
