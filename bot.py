@@ -54,9 +54,12 @@ class Bot:
         self.tg_login_count = st.get("tg_login_count", 0)
         self.account_index = st.get("account_index", 0)
         self.current_account = st.get("current_account")
-        # HH:MM (minutes) of the last success message we already counted, so a
-        # stale message from a previous login is never counted again
+        # HH:MM (minutes) of the last success message we already counted, plus
+        # how many same-minute success bubbles were present then, so a stale
+        # message is never recounted AND two logins in the same minute are told
+        # apart (the same-minute bubble count increases)
         self.tg_last_login_min = st.get("tg_last_login_min")
+        self.tg_last_min_count = st.get("tg_last_min_count", 0)
         if self.current_account:
             self.storage.set_account(self.current_account)
 
@@ -101,6 +104,7 @@ class Bot:
             "wallet_name": self.wallet_name,
             "tg_login_count": self.tg_login_count,
             "tg_last_login_min": self.tg_last_login_min,
+            "tg_last_min_count": self.tg_last_min_count,
             "account_index": self.account_index,
             "current_account": self.current_account,
             "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -490,19 +494,23 @@ class Bot:
         msg_time = clock = None
         while time.time() < deadline:
             nodes = self.dev.dump_nodes()
-            msg_time = pages.read_tg_last_login_time(nodes, marker)
+            msg_time, cnt = pages.read_tg_login_info(nodes, marker)
             clock = pages.read_status_clock(nodes)
             if msg_time is not None and clock is not None:
                 age = (clock - msg_time) % (24 * 60)
                 is_fresh = age <= window
-                is_new = msg_time != self.tg_last_login_min
+                # new = a different minute, OR the same minute but more
+                # same-minute bubbles than last time (a 2nd login this minute)
+                is_new = (msg_time != self.tg_last_login_min or
+                          cnt > self.tg_last_min_count)
                 if is_fresh and is_new:
                     self.tg_last_login_min = msg_time
+                    self.tg_last_min_count = cnt
                     self.tg_login_count += 1
                     limit = self.tg.get("logins_per_account", 400)
-                    self.log.info("TG: NEW login message at %02d:%02d -> "
+                    self.log.info("TG: NEW login message at %02d:%02d (x%d) -> "
                                   "count %d/%d (account=%s)",
-                                  msg_time // 60, msg_time % 60,
+                                  msg_time // 60, msg_time % 60, cnt,
                                   self.tg_login_count, limit, self.current_account)
                     if self.tg_login_count >= limit:
                         # do NOT switch here: the wallet currently in progress
@@ -515,7 +523,7 @@ class Bot:
             time.sleep(1.0)
 
         self.log.info("TG: no NEW login-success message within timeout "
-                      "(last_seen=%s counted=%s clock=%s) -> not counted",
+                      "(last_seen=%s counted_min=%s clock=%s) -> not counted",
                       msg_time, self.tg_last_login_min, clock)
 
     def switch_telegram_account(self):
@@ -575,6 +583,8 @@ class Bot:
         self.account_index = nxt
         self.storage.set_account(acct)
         self.tg_login_count = 0
+        self.tg_last_login_min = None
+        self.tg_last_min_count = 0
         self._persist()
         self.log.info("TG: switched to account '%s' -> wallets file %s",
                       acct, self.storage.wallets)
@@ -662,6 +672,8 @@ class Bot:
             self.log.info("TG: active account changed '%s' -> '%s' -> counter reset",
                           self.current_account, acct)
             self.tg_login_count = 0
+            self.tg_last_login_min = None
+            self.tg_last_min_count = 0
         else:
             self.log.info("TG: resuming login counter at %d", self.tg_login_count)
         self.current_account = acct

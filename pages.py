@@ -116,15 +116,31 @@ def read_status_clock(nodes):
 def read_tg_last_login_time(nodes, marker):
     """Timestamp (minutes since midnight) of the bottom-most login-success
     message in the bot chat, or None if no such message is visible."""
-    best = None
+    last_min, _ = read_tg_login_info(nodes, marker)
+    return last_min
+
+
+def read_tg_login_info(nodes, marker):
+    """(last_min, count) where last_min is the minute (since midnight) of the
+    bottom-most login-success message and count is how many visible success
+    messages share that same minute.
+
+    The message text has no seconds, so two logins that land in the same
+    minute look identical by timestamp. Counting the same-minute bubbles lets
+    the caller tell them apart: a second same-minute login makes count go from
+    1 to 2, which is detected as a new login even though the minute repeats."""
+    stamps = []
     for n in nodes:
         if marker in n.text and n.bounds:
-            if best is None or n.bounds[1] > best.bounds[1]:
-                best = n
-    if not best:
-        return None
-    m = _TIME.search(best.text)
-    return int(m.group(1)) * 60 + int(m.group(2)) if m else None
+            m = _TIME.search(n.text)
+            if m:
+                stamps.append((int(m.group(1)) * 60 + int(m.group(2)), n.bounds[1]))
+    if not stamps:
+        return None, 0
+    stamps.sort(key=lambda s: s[1])          # top -> bottom by y
+    last_min = stamps[-1][0]                  # bottom-most = newest
+    count = sum(1 for mm, _ in stamps if mm == last_min)
+    return last_min, count
 
 
 def find_tg_profile_tab(nodes, w, h):
