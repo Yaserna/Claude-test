@@ -1,14 +1,16 @@
 // One-time key setup for a NEW server.
-// Generates fresh mining keys + a deep link. Scan/open the link with the
-// Acki Nacki wallet app to bind the new key to the wallet, then this script
-// waits until the chain shows the new key and writes both files the miner needs:
+// Uses the raw wasm export gen_mining_keys (not wrapped by the old glue) to get
+// fresh mining keys + the official wallet-app deep link
+// (https://links.gosh.sh/deeplinks/wallet/v2/set-mining-keys?payload=...).
+// Scan/open the link with the Acki Nacki wallet app, then this script waits for
+// the chain to show the new key and writes the two files the miner needs:
 //   mining_keys_<name>.json  and  miner_address_<name>.txt
 // Usage:  node setup_keys.mjs yasan1
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { init, Wallet, Crypto } from './bee_sdk.mjs';
+import { init, Wallet } from './bee_sdk.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ENDPOINTS = ['https://mainnet.ackinacki.org'];
@@ -16,17 +18,23 @@ const BACKEND   = 'https://app-backend.ackinacki.org/api/';
 const APP_ID    = '0x' + '0'.repeat(63) + '2';
 const NAME = process.argv[2] || 'yasan1';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex64 = v => typeof v === 'bigint' ? v.toString(16).padStart(64, '0')
+                 : String(v ?? '').replace(/^0x/, '').toLowerCase();
 
 const wasmBytes = new Uint8Array(await readFile(new URL('./bee_sdk_bg.wasm', import.meta.url)));
-await init({ module_or_path: wasmBytes });
+const wasmX = await init({ module_or_path: wasmBytes });
 
 const wallet = new Wallet(ENDPOINTS, null, BACKEND, APP_ID);
 const mfa = (await wallet.check_name_availability(NAME)).multifactor_address;
 console.log(`[ok] wallet ${NAME} -> multifactor: ${mfa}`);
 
-const crypto = new Crypto(ENDPOINTS);
-const keys = await Promise.resolve(crypto.gen_mining_keys());
-const pub = keys.public, sec = keys.secret, link = keys.deep_link;
+const keys = await Promise.resolve(wasmX.gen_mining_keys());
+const pub = keys.public, sec = keys.secret;
+
+// Rebuild the deep link with the mining app_id in the payload (the raw export
+// called without args leaves app_id empty).
+const payload = Buffer.from(JSON.stringify({ pubkey: pub, app_id: APP_ID })).toString('base64url');
+const link = `https://links.gosh.sh/deeplinks/wallet/v2/set-mining-keys?payload=${payload}`;
 
 const keyFile = join(__dir, `mining_keys_${NAME}.json`);
 await writeFile(keyFile, JSON.stringify({ public: pub, secret: sec }));
@@ -39,14 +47,14 @@ console.log('===================================================================
 try {
   const { default: qr } = await import('qrcode-terminal');
   qr.generate(link, { small: true });
-} catch { console.log('(npm i qrcode-terminal  for a QR code; or send the link to your phone and tap it)\n'); }
+} catch {}
 
-console.log('waiting for the wallet app to confirm the new key on-chain...');
+console.log('waiting for the wallet app to confirm the new key on-chain (checks every 10s)...');
 while (true) {
   try {
     const d = await wallet.get_miner_details_by_multifactor_address(mfa);
-    const op = d?.owner_public?.replace(/^0x/, '');
-    if (op && op.toLowerCase() === pub.replace(/^0x/, '').toLowerCase()) {
+    const op = hex64(d?.owner_public);
+    if (op && op === pub.toLowerCase()) {
       const addrFile = join(__dir, `miner_address_${NAME}.txt`);
       await writeFile(addrFile, d.address + '\n');
       console.log(`\n[DONE] key confirmed on-chain`);
@@ -54,9 +62,9 @@ while (true) {
       console.log(`\nnext:  node mine_smart.mjs ${NAME} 20 0   (20-min test)`);
       process.exit(0);
     }
-    console.log(`  still old/absent key on-chain (owner_public=${(op || 'none').slice(0, 12)}...) — waiting 10s`);
+    console.log(`  on-chain key is still ${op ? op.slice(0, 12) + '...' : 'absent'} — waiting`);
   } catch (e) {
-    console.log('  (query error, retry 10s) ' + String(e).slice(0, 80));
+    console.log('  (no miner yet / query error, retry) ' + String(e).slice(0, 80));
   }
   await sleep(10000);
 }
