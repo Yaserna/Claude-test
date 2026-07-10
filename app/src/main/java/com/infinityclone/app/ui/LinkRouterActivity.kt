@@ -35,10 +35,12 @@ class LinkRouterActivity : AppCompatActivity() {
 
     /** لینک را از حالت‌های مختلف ورودی استخراج می‌کند. */
     private fun extractLink(): String? {
-        intent?.let { i ->
+        val i = intent
+        if (i != null) {
             when (i.action) {
                 Intent.ACTION_SEND -> i.getStringExtra(Intent.EXTRA_TEXT)?.let { return it }
                 Intent.ACTION_VIEW -> i.dataString?.let { return it }
+                else -> {}
             }
         }
         // در غیر این صورت از کلیپ‌بورد
