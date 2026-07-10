@@ -18,6 +18,10 @@ public class AppSystemEnv {
 
     static {
         sSystemPackages.add("android");
+        // اطلاعات واقعی Google Play Services عبور داده شود تا بارگذاری ماژول‌های
+        // Dynamite/ML Kit (مثل بارکدخوان Vision) داخل فضای مجازی معتبر شناخته شود.
+        sSystemPackages.add("com.google.android.gms");
+        sSystemPackages.add("com.google.android.gsf");
         sSystemPackages.add("com.google.android.webview");
         sSystemPackages.add("com.google.android.webview.dev");
         sSystemPackages.add("com.google.android.webview.beta");
