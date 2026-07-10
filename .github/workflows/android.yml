@@ -32,18 +32,21 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      - name: Rename APK for this project
+        run: cp app/build/outputs/apk/debug/app-debug.apk InfinityClone.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: InfinityClone
+          path: InfinityClone.apk
           if-no-files-found: warn
 
-      - name: Publish APK to "latest" release
+      - name: Publish APK to project release
         if: github.ref == 'refs/heads/Cloner'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest debug build
+          tag_name: infinityclone-latest
+          name: InfinityClone — Latest debug build
           prerelease: true
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: InfinityClone.apk
