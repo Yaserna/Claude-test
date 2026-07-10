@@ -84,6 +84,22 @@ async function main(){
   LOG=join(__dir,`smart_log_${NAME}.txt`);
   STATEFILE=join(__dir,`epoch_state_${NAME}.json`);
   log(`=== SMART MINER v2 name=${NAME} startFrac=${startFrac} target=${TARGET_BASKETS} restartEvery=${RESTART_EVERY} ${runMin?('('+runMin+'min test)'):''} ===`);
+
+  // ---- per-wallet proxy (only when this NAME is listed in assignments.json) ----
+  // proxy_pool.mjs keeps assignments fresh; the SDK talks through global fetch,
+  // so one global ProxyAgent routes everything. On reassignment: exit fresh,
+  // run_smart.sh relaunches us and loadState() resumes the same epoch.
+  const ASSIGN_FILE=join(__dir,'assignments.json');
+  const myProxy=()=>{ try{ const a=JSON.parse(readFileSync(ASSIGN_FILE,'utf8')).assignments; return (a && NAME in a)?a[NAME]:undefined; }catch{ return undefined; } };
+  let PROXY=myProxy();
+  if(PROXY!==undefined){
+    while(!PROXY){ log('[proxy] no live proxy assigned yet — waiting 30s'); await sleep(30000); PROXY=myProxy(); }
+    const { setGlobalDispatcher, ProxyAgent } = await import('undici');
+    setGlobalDispatcher(new ProxyAgent(PROXY));
+    log(`[proxy] using ${PROXY}`);
+    setInterval(()=>{ const p=myProxy(); if(p && p!==PROXY){ log(`[proxy] reassigned ${PROXY} -> ${p} — restarting fresh`); process.exit(0); } },60000).unref();
+  }
+
   MK=JSON.parse(await readFile(join(__dir,`mining_keys_${NAME}.json`),'utf8'));
   MINERADDR=(await readFile(join(__dir,`miner_address_${NAME}.txt`),'utf8')).trim();
   const wasmBytes=new Uint8Array(await readFile(new URL('./bee_sdk_bg.wasm',import.meta.url)));
