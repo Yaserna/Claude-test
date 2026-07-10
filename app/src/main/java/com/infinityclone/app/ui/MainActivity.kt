@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.infinityclone.app.BuildConfig
 import com.infinityclone.app.R
 import com.infinityclone.app.core.CloneInfo
 import com.infinityclone.app.core.CloneNames
@@ -44,7 +45,16 @@ class MainActivity : AppCompatActivity() {
         binding.cloneList.layoutManager = LinearLayoutManager(this)
         binding.cloneList.adapter = adapter
 
-        setSupportActionBar(binding.toolbar)
+        // نمایش نسخه‌ی بیلد تا نسخه‌ها قابل‌تشخیص باشند
+        binding.toolbar.subtitle = "v${BuildConfig.VERSION_NAME}"
+        binding.toolbar.setSubtitleTextColor(0xFFFFFFFF.toInt())
+        binding.toolbar.inflateMenu(R.menu.main_menu)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_open_link) {
+                startActivity(Intent(this, LinkRouterActivity::class.java))
+                true
+            } else false
+        }
 
         binding.addCloneButton.setOnClickListener {
             startActivity(Intent(this, InstalledAppsActivity::class.java))
@@ -53,18 +63,6 @@ class MainActivity : AppCompatActivity() {
         if (!Engine.instance.isReady) {
             binding.engineWarning.visibility = View.VISIBLE
         }
-    }
-
-    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
-        return if (item.itemId == R.id.action_open_link) {
-            startActivity(Intent(this, LinkRouterActivity::class.java))
-            true
-        } else super.onOptionsItemSelected(item)
     }
 
     override fun onResume() {

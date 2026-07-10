@@ -13,8 +13,12 @@ android {
         minSdk = 26
         // targetSdk پایین (۲۸) = محدودیت‌های کمتر سیستم‌عامل برای موتور مجازی‌سازی.
         targetSdk = (rootProject.extra["targetSdkVersion"] as Int)
-        versionCode = (rootProject.extra["versionCode"] as Int)
-        versionName = (rootProject.extra["versionName"] as String)
+        // نسخه از روی شماره‌ی بیلد CI تا نسخه‌ها قابل‌تشخیص باشند
+        val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull()
+        val buildLabel = System.getenv("BUILD_LABEL")
+        versionCode = buildNumber ?: (rootProject.extra["versionCode"] as Int)
+        versionName = (rootProject.extra["versionName"] as String) +
+            (buildLabel?.let { " (build $it)" } ?: "")
 
         ndk {
             // موتور فقط برای این دو معماری lib بومی دارد.
@@ -58,6 +62,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 

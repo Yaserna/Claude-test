@@ -58,10 +58,11 @@ class LinkRouterActivity : AppCompatActivity() {
                 finish()
                 return@launch
             }
-            val labels = clones.map { c ->
+            val labels: Array<CharSequence> = Array(clones.size) { i ->
+                val c = clones[i]
                 val name = CloneNames.get(this@LinkRouterActivity, c.packageName, c.userId) ?: c.label
                 "$name · ${c.packageName} (${c.userId})"
-            }.toTypedArray()
+            }
 
             AlertDialog.Builder(this@LinkRouterActivity)
                 .setTitle(R.string.pick_clone_for_link)
