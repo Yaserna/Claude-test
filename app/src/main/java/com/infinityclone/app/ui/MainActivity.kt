@@ -64,6 +64,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.action_clone_from_apk -> {
                     pickApk.launch("*/*"); true
                 }
+                R.id.action_share_log -> { captureAndShareLog(); true }
                 else -> false
             }
         }
@@ -87,6 +88,33 @@ class MainActivity : AppCompatActivity() {
             val clones = withContext(Dispatchers.IO) { Engine.instance.listClones() }
             adapter.submit(clones)
             binding.emptyState.visibility = if (clones.isEmpty()) View.VISIBLE else View.GONE
+        }
+    }
+
+    /** لاگ اخیر را روی نخ پس‌زمینه جمع می‌کند و برای اشتراک‌گذاری باز می‌کند. */
+    private fun captureAndShareLog() {
+        Toast.makeText(this, R.string.collecting_log, Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                val raw = runCatching {
+                    val p = Runtime.getRuntime()
+                        .exec(arrayOf("logcat", "-d", "-b", "crash", "-b", "main", "-v", "time", "-t", "4000"))
+                    p.inputStream.bufferedReader().readText()
+                }.getOrElse { "logcat error: ${it.message}" }
+                val keys = listOf(
+                    "FATAL", "AndroidRuntime", "Exception", "beginning of crash",
+                    "telegram", "tmessages", "BlackBox", "Bcore", "infinityclone", "install"
+                )
+                raw.lineSequence()
+                    .filter { line -> keys.any { line.contains(it, ignoreCase = true) } }
+                    .toList().takeLast(400).joinToString("\n")
+                    .ifBlank { "لاگ مرتبطی پیدا نشد (ممکن است MIUI دسترسی لاگ را محدود کرده باشد)." }
+            }
+            val share = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+            }
+            startActivity(Intent.createChooser(share, getString(R.string.share_error_log)))
         }
     }
 

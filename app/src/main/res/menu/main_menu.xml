@@ -9,4 +9,8 @@
         android:id="@+id/action_open_link"
         android:title="@string/open_link_in_clone"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_share_log"
+        android:title="@string/share_error_log"
+        app:showAsAction="never" />
 </menu>

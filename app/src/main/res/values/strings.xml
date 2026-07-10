@@ -29,6 +29,8 @@
     <string name="shortcut_unsupported">لانچر گوشی از افزودن آیکن پشتیبانی نمی‌کند</string>
 
     <string name="clone_from_apk">کلون از فایل APK</string>
+    <string name="share_error_log">اشتراک‌گذاری لاگ خطا</string>
+    <string name="collecting_log">در حال جمع‌آوری لاگ…</string>
     <string name="importing_apk">در حال خواندن فایل و ساخت کلون…</string>
     <string name="clone_created_apk">کلون از فایل APK ساخته شد</string>
     <string name="apk_invalid">فایل انتخاب‌شده یک APK معتبر نیست</string>
