@@ -2,6 +2,8 @@ package com.infinityclone.app.core
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import java.io.File
 import top.niunaijun.blackbox.BlackBoxCore
@@ -91,6 +93,16 @@ class BlackBoxEngine : CloneEngine {
 
     override fun isCloneInstalled(packageName: String, userId: Int): Boolean {
         return runCatching { core.isInstalled(packageName, userId) }.getOrDefault(false)
+    }
+
+    override fun openLinkInClone(uri: String, packageName: String, userId: Int): Boolean {
+        return runCatching {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {
+                setPackage(packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            core.startActivity(intent, userId)
+        }.onFailure { Log.e(TAG, "openLinkInClone: ${it.message}") }.isSuccess
     }
 
     /**

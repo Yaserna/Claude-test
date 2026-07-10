@@ -53,4 +53,10 @@ interface CloneEngine {
 
     /** آیا این پکیج در این فضای مجازی نصب است؟ */
     fun isCloneInstalled(packageName: String, userId: Int): Boolean
+
+    /**
+     * یک لینک/URI را به‌صورت ACTION_VIEW (deep link) داخل یک کلون باز می‌کند.
+     * برای مواقعی که QR در بیرون اسکن شده و باید به کلون تحویل داده شود.
+     */
+    fun openLinkInClone(uri: String, packageName: String, userId: Int): Boolean
 }

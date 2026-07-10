@@ -44,6 +44,8 @@ class MainActivity : AppCompatActivity() {
         binding.cloneList.layoutManager = LinearLayoutManager(this)
         binding.cloneList.adapter = adapter
 
+        setSupportActionBar(binding.toolbar)
+
         binding.addCloneButton.setOnClickListener {
             startActivity(Intent(this, InstalledAppsActivity::class.java))
         }
@@ -51,6 +53,18 @@ class MainActivity : AppCompatActivity() {
         if (!Engine.instance.isReady) {
             binding.engineWarning.visibility = View.VISIBLE
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return if (item.itemId == R.id.action_open_link) {
+            startActivity(Intent(this, LinkRouterActivity::class.java))
+            true
+        } else super.onOptionsItemSelected(item)
     }
 
     override fun onResume() {

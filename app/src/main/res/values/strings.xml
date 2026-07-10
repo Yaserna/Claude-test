@@ -28,6 +28,14 @@
     <string name="shortcut_requested">آیکن به صفحه‌ی اصلی اضافه شد</string>
     <string name="shortcut_unsupported">لانچر گوشی از افزودن آیکن پشتیبانی نمی‌کند</string>
 
+    <string name="open_in_clone">باز کردن در کلون</string>
+    <string name="open_link_in_clone">باز کردن لینک (از کلیپ‌بورد) در کلون</string>
+    <string name="pick_clone_for_link">این لینک در کدام کلون باز شود؟</string>
+    <string name="no_link">لینکی پیدا نشد. اول لینک را کپی کن یا از دکمه‌ی Share اپ اسکنر استفاده کن.</string>
+    <string name="no_clones">هنوز کلونی نساخته‌ای.</string>
+    <string name="link_opened">لینک در کلون باز شد</string>
+    <string name="link_failed">باز کردن لینک ناموفق بود</string>
+
     <string name="engine_disabled">موتور مجازی‌سازی فعال نیست (AAR اضافه نشده)</string>
     <string name="engine_warning">⚠️ موتور واقعی اضافه نشده است؛ کلون‌ها کار نمی‌کنند. برای فعال‌سازی به README مراجعه کن.</string>
 </resources>

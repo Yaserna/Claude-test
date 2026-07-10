@@ -53,6 +53,18 @@
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.NoDisplay" />
 
+        <!-- گرفتن لینک اسکن‌شده از منوی Share و باز کردنش در یک کلون -->
+        <activity
+            android:name=".ui.LinkRouterActivity"
+            android:exported="true"
+            android:label="@string/open_in_clone">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!--
             ⚠️ کامپوننت‌های پروکسی موتور (Stub Activities/Services/Providers/:p0..:pN)
             از طریق merge شدن مانیفست AAR موتور اضافه می‌شوند. اگر نسخه‌ی موتور
