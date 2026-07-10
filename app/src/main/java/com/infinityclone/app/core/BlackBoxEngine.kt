@@ -59,7 +59,8 @@ class BlackBoxEngine : CloneEngine {
             for (app in apps) {
                 val label = runCatching { pm.getApplicationLabel(app).toString() }
                     .getOrDefault(app.packageName)
-                result += CloneInfo(app.packageName, userId, label)
+                val icon = runCatching { pm.getApplicationIcon(app) }.getOrNull()
+                result += CloneInfo(app.packageName, userId, label, icon)
             }
         }
         return result

@@ -41,8 +41,10 @@ class CloneAdapter(
         holder.binding.clonePackage.text =
             context.getString(R.string.clone_subtitle, item.packageName, item.userId)
 
+        // آیکن از PM موتور خوانده شده (در listClones) تا کلون‌های APKِ نصب‌نشده هم آیکن داشته باشند
         holder.binding.cloneIcon.setImageDrawable(
-            runCatching { context.packageManager.getApplicationIcon(item.packageName) }.getOrNull()
+            item.icon
+                ?: runCatching { context.packageManager.getApplicationIcon(item.packageName) }.getOrNull()
         )
 
         holder.binding.root.setOnClickListener { onClick(item) }

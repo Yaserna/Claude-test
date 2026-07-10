@@ -13,6 +13,7 @@ data class CloneInfo(
     val packageName: String,
     val userId: Int,
     val label: String,
+    val icon: android.graphics.drawable.Drawable? = null,
 )
 
 /**
