@@ -64,8 +64,10 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- لینک‌های اتصال کیف‌پول (App Link کیف‌پول Acki Nacki / GOSH) -->
-            <intent-filter>
+            <!-- لینک‌های اتصال کیف‌پول (App Link کیف‌پول Acki Nacki / GOSH).
+                 autoVerify لازم است تا دامنه در «Open by default» اپ ما لیست شود و
+                 کاربر بتواند دستی روشنش کند (تأیید خودکار چون دامنه مال ما نیست، ناموفق است). -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
