@@ -59,4 +59,10 @@ interface CloneEngine {
      * برای مواقعی که QR در بیرون اسکن شده و باید به کلون تحویل داده شود.
      */
     fun openLinkInClone(uri: String, packageName: String, userId: Int): Boolean
+
+    /**
+     * از یک فایل APK (که لازم نیست روی دستگاه نصب باشد) در یک فضای تازه کلون می‌سازد.
+     * @return userId فضایی که کلون در آن نصب شد، یا -1 در صورت شکست.
+     */
+    fun createCloneFromApk(apkPath: String): Int
 }

@@ -24,6 +24,7 @@ class NoopEngine : CloneEngine {
     override fun removeClone(packageName: String, userId: Int) = Unit
     override fun isCloneInstalled(packageName: String, userId: Int): Boolean = false
     override fun openLinkInClone(uri: String, packageName: String, userId: Int): Boolean = false
+    override fun createCloneFromApk(apkPath: String): Int = -1
 
     private companion object {
         const val TAG = "NoopEngine"

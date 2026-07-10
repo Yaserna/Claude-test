@@ -95,6 +95,17 @@ class BlackBoxEngine : CloneEngine {
         return runCatching { core.isInstalled(packageName, userId) }.getOrDefault(false)
     }
 
+    override fun createCloneFromApk(apkPath: String): Int {
+        ensureServices()
+        val userId = nextFreeUserId("")
+        if (core.users.none { it.id == userId }) {
+            runCatching { core.createUser(userId) }
+                .onFailure { Log.e(TAG, "createUser($userId): ${it.message}"); return -1 }
+        }
+        val res = runCatching { core.installPackageAsUser(File(apkPath), userId) }.getOrNull()
+        return if (res != null && res.success) userId else -1
+    }
+
     override fun openLinkInClone(uri: String, packageName: String, userId: Int): Boolean {
         return runCatching {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {

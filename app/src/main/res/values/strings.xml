@@ -28,6 +28,11 @@
     <string name="shortcut_requested">آیکن به صفحه‌ی اصلی اضافه شد</string>
     <string name="shortcut_unsupported">لانچر گوشی از افزودن آیکن پشتیبانی نمی‌کند</string>
 
+    <string name="clone_from_apk">کلون از فایل APK</string>
+    <string name="importing_apk">در حال خواندن فایل و ساخت کلون…</string>
+    <string name="clone_created_apk">کلون از فایل APK ساخته شد</string>
+    <string name="apk_invalid">فایل انتخاب‌شده یک APK معتبر نیست</string>
+
     <string name="open_in_clone">باز کردن در کلون</string>
     <string name="open_link_in_clone">باز کردن لینک (از کلیپ‌بورد) در کلون</string>
     <string name="pick_clone_for_link">این لینک در کدام کلون باز شود؟</string>
