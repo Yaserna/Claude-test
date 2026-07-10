@@ -63,6 +63,17 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+
+            <!-- لینک‌های اتصال کیف‌پول (App Link کیف‌پول Acki Nacki / GOSH) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="links.gosh.sh"
+                    android:pathPrefix="/deeplinks/wallet" />
+                <data android:scheme="http" android:host="links.gosh.sh"
+                    android:pathPrefix="/deeplinks/wallet" />
+            </intent-filter>
         </activity>
 
         <!--
