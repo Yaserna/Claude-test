@@ -3,12 +3,18 @@ package com.infinityclone.app.ui
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import java.io.File
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,11 +23,12 @@ import com.infinityclone.app.R
 import com.infinityclone.app.core.CloneInfo
 import com.infinityclone.app.core.CloneNames
 import com.infinityclone.app.core.Engine
+import com.infinityclone.app.core.HiddenStore
 import com.infinityclone.app.core.Shortcuts
-import com.infinityclone.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.infinityclone.app.databinding.ActivityMainBinding
 
 /**
  * صفحه‌ی اصلی: فهرست کلون‌های ساخته‌شده + دکمه‌ی افزودن کلون جدید.
@@ -33,6 +40,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: CloneAdapter
+
+    /** فهرست کامل کلون‌ها (فیلترنشده) که آخرین بار از موتور خوانده شد. */
+    private var allClones: List<CloneInfo> = emptyList()
+
+    /** آیا بخش مخفی در این نشست باز شده است؟ با خروج از اپ دوباره قفل می‌شود. */
+    private var hiddenUnlocked = false
 
     private val pickApk = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) importAndClone(uri)
@@ -56,9 +69,17 @@ class MainActivity : AppCompatActivity() {
             onAddShortcut = { clone -> addShortcut(clone) },
             onUpdate = { clone -> updateClone(clone) },
             onRemove = { clone -> removeClone(clone) },
+            onHold = { clone -> onCloneHeld(clone) },
         )
         binding.cloneList.layoutManager = LinearLayoutManager(this)
         binding.cloneList.adapter = adapter
+
+        // نوار جستجو: هم جستجوی واقعی، هم تشخیص رمزِ بخش مخفی.
+        binding.searchBar.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: Editable?) { onSearchChanged(s?.toString().orEmpty()) }
+        })
 
         // نمایش نسخه‌ی بیلد تا نسخه‌ها قابل‌تشخیص باشند
         binding.toolbar.subtitle = "v${BuildConfig.VERSION_NAME}"
@@ -91,12 +112,120 @@ class MainActivity : AppCompatActivity() {
         refresh()
     }
 
+    /** با خارج‌شدن از اپ، بخش مخفی دوباره قفل می‌شود. */
+    override fun onStop() {
+        super.onStop()
+        hiddenUnlocked = false
+        binding.searchBar.setText("")
+    }
+
     private fun refresh() {
         lifecycleScope.launch {
-            val clones = withContext(Dispatchers.IO) { Engine.instance.listClones() }
-            adapter.submit(clones)
-            binding.emptyState.visibility = if (clones.isEmpty()) View.VISIBLE else View.GONE
+            allClones = withContext(Dispatchers.IO) { Engine.instance.listClones() }
+            applyFilter()
         }
+    }
+
+    /** فهرست نمایش‌داده‌شده را بر اساس متن جستجو و وضعیت مخفی‌بودن می‌سازد. */
+    private fun applyFilter() {
+        val q = binding.searchBar.text.toString().trim()
+        val list = allClones.filter { c ->
+            val hidden = HiddenStore.isHidden(this, c.packageName, c.userId)
+            if (hidden && !hiddenUnlocked) return@filter false
+            if (q.isEmpty()) return@filter true
+            val name = CloneNames.get(this, c.packageName, c.userId) ?: c.label
+            name.contains(q, true) || c.packageName.contains(q, true)
+        }
+        adapter.submit(list)
+        binding.emptyState.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun onSearchChanged(text: String) {
+        val q = text.trim()
+        // اگر بخش مخفی هنوز قفل است و متنِ واردشده دقیقاً رمز است → با اثر انگشت باز کن.
+        if (!hiddenUnlocked && HiddenStore.hasAnyHidden(this) &&
+            HiddenStore.hasPasscode(this) && HiddenStore.checkPasscode(this, q)
+        ) {
+            promptBiometric(getString(R.string.unlock_hidden)) {
+                hiddenUnlocked = true
+                binding.searchBar.setText("") // پاک‌کردن رمز؛ فیلتر دوباره اجرا می‌شود
+                Toast.makeText(this, R.string.hidden_unlocked, Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        applyFilter()
+    }
+
+    // ── مخفی‌سازی کلون‌ها ────────────────────────────────────────────
+    /** لمس ۲.۵ ثانیه‌ای روی یک کلون: مخفی‌کردن یا آشکارکردن. */
+    private fun onCloneHeld(clone: CloneInfo) {
+        val isHidden = HiddenStore.isHidden(this, clone.packageName, clone.userId)
+        if (isHidden) {
+            // این کلون هم‌اکنون در بخشِ بازشده دیده می‌شود → آشکارکردن دوباره.
+            HiddenStore.setHidden(this, clone.packageName, clone.userId, false)
+            Toast.makeText(this, R.string.clone_unhidden, Toast.LENGTH_SHORT).show()
+            applyFilter()
+            return
+        }
+        if (!HiddenStore.hasPasscode(this)) {
+            // اولین‌بار: تنظیم رمز ورود، سپس مخفی‌کردن.
+            promptSetPasscode { doHide(clone) }
+        } else {
+            doHide(clone)
+        }
+    }
+
+    private fun doHide(clone: CloneInfo) {
+        HiddenStore.setHidden(this, clone.packageName, clone.userId, true)
+        Toast.makeText(this, R.string.clone_hidden, Toast.LENGTH_SHORT).show()
+        applyFilter()
+    }
+
+    /** دیالوگِ تنظیم رمز ورودِ بخش مخفی (اولین‌بار). */
+    private fun promptSetPasscode(onDone: () -> Unit) {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            hint = getString(R.string.set_passcode_hint)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.set_passcode_title)
+            .setMessage(R.string.set_passcode_message)
+            .setView(input)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val code = input.text.toString().trim()
+                if (code.length < 3) {
+                    Toast.makeText(this, R.string.passcode_too_short, Toast.LENGTH_LONG).show()
+                } else {
+                    HiddenStore.setPasscode(this, code)
+                    onDone()
+                }
+            }
+            .setNegativeButton(R.string.close, null)
+            .show()
+    }
+
+    /** احراز هویت با اثر انگشت (یا رمز دستگاه به‌عنوان جایگزین). */
+    private fun promptBiometric(subtitle: String, onSuccess: () -> Unit) {
+        val manager = BiometricManager.from(this)
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK
+        if (manager.canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
+            // دستگاه اثر انگشت ندارد یا ثبت نشده → مستقیم اجازه بده.
+            onSuccess(); return
+        }
+        val executor = ContextCompat.getMainExecutor(this)
+        val prompt = BiometricPrompt(this, executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    onSuccess()
+                }
+            })
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(getString(R.string.app_name))
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(authenticators)
+            .setNegativeButtonText(getString(R.string.close))
+            .build()
+        prompt.authenticate(info)
     }
 
     /** آپدیت یک کلون: انتخاب منبع (نسخه‌ی نصب‌شده روی گوشی یا فایل APK). */

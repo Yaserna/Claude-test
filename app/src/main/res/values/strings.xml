@@ -49,6 +49,16 @@
     <string name="link_opened">لینک در کلون باز شد</string>
     <string name="link_failed">باز کردن لینک ناموفق بود</string>
 
+    <string name="search_hint">جستجوی کلون…</string>
+    <string name="set_passcode_title">تنظیم رمز بخش مخفی</string>
+    <string name="set_passcode_message">این رمز را در نوار جستجو تایپ کن تا بعداً کلون‌های مخفی نمایش داده شوند.</string>
+    <string name="set_passcode_hint">رمز ورود</string>
+    <string name="passcode_too_short">رمز باید حداقل ۳ نویسه باشد</string>
+    <string name="unlock_hidden">برای دیدن کلون‌های مخفی احراز هویت کن</string>
+    <string name="hidden_unlocked">بخش مخفی باز شد</string>
+    <string name="clone_hidden">کلون مخفی شد</string>
+    <string name="clone_unhidden">کلون از حالت مخفی خارج شد</string>
+
     <string name="engine_disabled">موتور مجازی‌سازی فعال نیست (AAR اضافه نشده)</string>
     <string name="engine_warning">⚠️ موتور واقعی اضافه نشده است؛ کلون‌ها کار نمی‌کنند. برای فعال‌سازی به README مراجعه کن.</string>
 </resources>

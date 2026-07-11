@@ -1,6 +1,9 @@
 package com.infinityclone.app.ui
 
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
@@ -16,7 +19,10 @@ class CloneAdapter(
     private val onAddShortcut: (CloneInfo) -> Unit,
     private val onUpdate: (CloneInfo) -> Unit,
     private val onRemove: (CloneInfo) -> Unit,
+    private val onHold: (CloneInfo) -> Unit,
 ) : RecyclerView.Adapter<CloneAdapter.VH>() {
+
+    private val holdHandler = Handler(Looper.getMainLooper())
 
     private val items = mutableListOf<CloneInfo>()
 
@@ -48,6 +54,24 @@ class CloneAdapter(
                 ?: runCatching { context.packageManager.getApplicationIcon(item.packageName) }.getOrNull()
         )
 
+        // لمس ۲.۵ ثانیه‌ای → گزینه‌ی مخفی‌سازی. اگر hold فعال شد، کلیک عادی لغو می‌شود.
+        var held = false
+        val holdRunnable = Runnable { held = true; onHold(item) }
+        holder.binding.root.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    held = false
+                    holdHandler.postDelayed(holdRunnable, 2500)
+                }
+                MotionEvent.ACTION_UP -> {
+                    holdHandler.removeCallbacks(holdRunnable)
+                    if (!held) v.performClick()
+                }
+                MotionEvent.ACTION_MOVE, MotionEvent.ACTION_CANCEL ->
+                    holdHandler.removeCallbacks(holdRunnable)
+            }
+            true
+        }
         holder.binding.root.setOnClickListener { onClick(item) }
         holder.binding.moreButton.setOnClickListener { anchor ->
             PopupMenu(context, anchor).apply {
