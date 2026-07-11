@@ -23,7 +23,13 @@ object Shortcuts {
      * یک آیکن روی صفحه‌ی اصلی می‌سازد که با لمس، این کلون را اجرا می‌کند.
      * آیکن و نام، از اپ اصلی + نام دلخواه کاربر گرفته می‌شوند.
      */
-    fun pin(context: Context, packageName: String, userId: Int, label: String): Boolean {
+    fun pin(
+        context: Context,
+        packageName: String,
+        userId: Int,
+        label: String,
+        iconDrawable: Drawable? = null,
+    ): Boolean {
         if (!isSupported(context)) return false
 
         val intent = Intent(context, ShortcutActivity::class.java).apply {
@@ -32,7 +38,10 @@ object Shortcuts {
             putExtra(ShortcutActivity.EXTRA_USER, userId)
         }
 
-        val icon = appIcon(context, packageName)
+        // آیکنِ خودِ کلون (از موتور) در اولویت است؛ اپ‌های کلونِ نصب‌نشده روی گوشی
+        // در PM میزبان نیستند و آیکن‌شان فقط از این طریق در دسترس است.
+        val icon = iconDrawable?.let { IconCompat.createWithBitmap(drawableToBitmap(it)) }
+            ?: appIcon(context, packageName)
             ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher)
 
         val shortcut = ShortcutInfoCompat.Builder(context, "clone_${packageName}_$userId")

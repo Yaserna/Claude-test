@@ -171,6 +171,9 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(Binder.getCallingPid());
         if (processByPid == null)
             return;
+        // کلون‌های مخفی نباید هیچ اعلانی نمایش بدهند.
+        if (isHiddenClone(processByPid.getPackageName(), userId))
+            return;
         int notificationId = getNotificationId(userId, id, processByPid.getPackageName());
 
         if (BuildCompat.isOreo()) {
@@ -299,5 +302,22 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
 
     public static int getNotificationId(int userId, int notificationId, String packageName) {
         return (packageName + userId + notificationId).hashCode();
+    }
+
+    /**
+     * آیا این کلون توسط کاربر مخفی شده است؟ وضعیت را اپ میزبان در
+     * SharedPreferences می‌نویسد؛ چون این سرویس در پروسه‌ی جدا اجرا می‌شود،
+     * با MODE_MULTI_PROCESS هر بار از دیسک تازه خوانده می‌شود.
+     */
+    @SuppressWarnings("deprecation")
+    private boolean isHiddenClone(String packageName, int userId) {
+        try {
+            android.content.SharedPreferences sp = BlackBoxCore.getContext()
+                    .getSharedPreferences("hidden_clones", Context.MODE_MULTI_PROCESS);
+            java.util.Set<String> set = sp.getStringSet("hidden_keys", null);
+            return set != null && set.contains(packageName + "@" + userId);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 }

@@ -12,6 +12,7 @@ import com.infinityclone.app.R
 import com.infinityclone.app.core.CloneInfo
 import com.infinityclone.app.core.CloneNames
 import com.infinityclone.app.core.Engine
+import com.infinityclone.app.core.HiddenStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +56,7 @@ class LinkRouterActivity : AppCompatActivity() {
     private fun pickCloneThenOpen(link: String) {
         lifecycleScope.launch {
             val clones = withContext(Dispatchers.IO) { Engine.instance.listClones() }
+                .filterNot { HiddenStore.isHidden(this@LinkRouterActivity, it.packageName, it.userId) }
             if (clones.isEmpty()) {
                 Toast.makeText(this@LinkRouterActivity, R.string.no_clones, Toast.LENGTH_LONG).show()
                 finish()

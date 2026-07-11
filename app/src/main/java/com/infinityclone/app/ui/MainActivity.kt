@@ -364,7 +364,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun addShortcut(clone: CloneInfo) {
         val label = CloneNames.get(this, clone.packageName, clone.userId) ?: clone.label
-        val ok = Shortcuts.pin(this, clone.packageName, clone.userId, label)
+        val ok = Shortcuts.pin(this, clone.packageName, clone.userId, label, clone.icon)
         val msg = if (ok) R.string.shortcut_requested else R.string.shortcut_unsupported
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
