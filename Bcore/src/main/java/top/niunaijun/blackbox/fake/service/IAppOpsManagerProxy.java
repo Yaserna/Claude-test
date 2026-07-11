@@ -47,11 +47,13 @@ public class IAppOpsManagerProxy extends BinderInvocationStub {
         
         
         
-        if (methodName.startsWith("check") || 
-            methodName.startsWith("note") || 
-            methodName.startsWith("start")) {
-            Slog.d(TAG, "AppOps invoke: Bypassing system for " + methodName + ", allowing operation");
+        if (methodName.startsWith("check")) {
             return AppOpsManager.MODE_ALLOWED;
+        }
+        // note*/start* در اندروید ۱۱+ ممکن است SyncNotedAppOp برگردانند، نه int.
+        // بازگرداندن Integer باعث ClassCastException می‌شود (کرش تلگرام و ...).
+        if (methodName.startsWith("note") || methodName.startsWith("start")) {
+            return allowedResult(method, args);
         }
         
         
@@ -79,6 +81,49 @@ public class IAppOpsManagerProxy extends BinderInvocationStub {
     @Override
     public boolean isBadEnv() {
         return false;
+    }
+
+    /**
+     * نتیجه‌ی «مجاز» با نوع درست: اگر متد باید SyncNotedAppOp برگرداند (اندروید ۱۱+)
+     * یک نمونه می‌سازیم، وگرنه MODE_ALLOWED برمی‌گردانیم.
+     */
+    private Object allowedResult(Method method, Object[] args) {
+        if ("android.app.SyncNotedAppOp".equals(method.getReturnType().getName())) {
+            Object v = makeSyncNotedAppOp(args);
+            if (v != null) return v;
+        }
+        return AppOpsManager.MODE_ALLOWED;
+    }
+
+    private static Object makeSyncNotedAppOp(Object[] args) {
+        try {
+            int opCode = (args != null && args.length > 0 && args[0] instanceof Integer)
+                    ? (Integer) args[0] : 0;
+            String pkg = null;
+            if (args != null) {
+                for (Object a : args) {
+                    if (a instanceof String) { pkg = (String) a; break; }
+                }
+            }
+            if (pkg == null) pkg = BlackBoxCore.getHostPkg();
+
+            Class<?> c = Class.forName("android.app.SyncNotedAppOp");
+            try {
+                return c.getConstructor(int.class, int.class, String.class, String.class)
+                        .newInstance(AppOpsManager.MODE_ALLOWED, opCode, null, pkg);
+            } catch (NoSuchMethodException ignore) { }
+            try {
+                return c.getConstructor(int.class, int.class, String.class)
+                        .newInstance(AppOpsManager.MODE_ALLOWED, opCode, pkg);
+            } catch (NoSuchMethodException ignore) { }
+            try {
+                return c.getConstructor(int.class, int.class)
+                        .newInstance(AppOpsManager.MODE_ALLOWED, opCode);
+            } catch (NoSuchMethodException ignore) { }
+        } catch (Throwable t) {
+            Slog.w(TAG, "makeSyncNotedAppOp failed: " + t.getMessage());
+        }
+        return null;
     }
 
     @ProxyMethod("noteProxyOperation")
