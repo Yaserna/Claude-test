@@ -14,6 +14,7 @@ class CloneAdapter(
     private val onClick: (CloneInfo) -> Unit,
     private val onRename: (CloneInfo) -> Unit,
     private val onAddShortcut: (CloneInfo) -> Unit,
+    private val onUpdate: (CloneInfo) -> Unit,
     private val onRemove: (CloneInfo) -> Unit,
 ) : RecyclerView.Adapter<CloneAdapter.VH>() {
 
@@ -52,12 +53,14 @@ class CloneAdapter(
             PopupMenu(context, anchor).apply {
                 menu.add(0, 1, 0, R.string.action_rename)
                 menu.add(0, 2, 1, R.string.action_add_home)
-                menu.add(0, 3, 2, R.string.action_remove)
+                menu.add(0, 3, 2, R.string.action_update)
+                menu.add(0, 4, 3, R.string.action_remove)
                 setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         1 -> onRename(item)
                         2 -> onAddShortcut(item)
-                        3 -> onRemove(item)
+                        3 -> onUpdate(item)
+                        4 -> onRemove(item)
                     }
                     true
                 }

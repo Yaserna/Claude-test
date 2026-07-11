@@ -23,7 +23,13 @@
 
     <string name="action_rename">تغییر نام</string>
     <string name="action_add_home">افزودن به صفحه‌ی اصلی</string>
+    <string name="action_update">آپدیت</string>
     <string name="action_remove">حذف</string>
+
+    <string name="update_from_installed">از نسخه‌ی نصب‌شده روی گوشی</string>
+    <string name="update_from_apk">از فایل APK</string>
+    <string name="updating_clone">در حال آپدیت کلون…</string>
+    <string name="update_done">کلون آپدیت شد (داده‌ها حفظ شد)</string>
 
     <string name="shortcut_requested">آیکن به صفحه‌ی اصلی اضافه شد</string>
     <string name="shortcut_unsupported">لانچر گوشی از افزودن آیکن پشتیبانی نمی‌کند</string>

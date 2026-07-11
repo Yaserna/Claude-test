@@ -107,6 +107,16 @@ class BlackBoxEngine : CloneEngine {
         return if (res != null && res.success) userId else -1
     }
 
+    override fun updateClone(packageName: String, userId: Int, apkPath: String?): Boolean {
+        ensureServices()
+        // نصب مجدد روی همان userId = آپدیت درجا؛ داده‌ها حفظ می‌شوند.
+        val res = runCatching {
+            if (apkPath != null) core.installPackageAsUser(File(apkPath), userId)
+            else core.installPackageAsUser(packageName, userId)
+        }.getOrNull()
+        return res != null && res.success
+    }
+
     override fun openLinkInClone(uri: String, packageName: String, userId: Int): Boolean {
         return runCatching {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {

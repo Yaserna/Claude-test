@@ -66,4 +66,10 @@ interface CloneEngine {
      * @return userId فضایی که کلون در آن نصب شد، یا -1 در صورت شکست.
      */
     fun createCloneFromApk(apkPath: String): Int
+
+    /**
+     * یک کلونِ موجود را در همان فضا (userId) آپدیت می‌کند و داده‌ها حفظ می‌شوند.
+     * اگر [apkPath] داده شود از آن فایل، وگرنه از نسخه‌ی نصب‌شده روی گوشی استفاده می‌کند.
+     */
+    fun updateClone(packageName: String, userId: Int, apkPath: String?): Boolean
 }

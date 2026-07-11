@@ -38,6 +38,13 @@ class MainActivity : AppCompatActivity() {
         if (uri != null) importAndClone(uri)
     }
 
+    private var pendingUpdate: CloneInfo? = null
+    private val pickUpdateApk = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val clone = pendingUpdate
+        pendingUpdate = null
+        if (uri != null && clone != null) importAndUpdate(uri, clone)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -47,6 +54,7 @@ class MainActivity : AppCompatActivity() {
             onClick = { clone -> launchClone(clone) },
             onRename = { clone -> renameClone(clone) },
             onAddShortcut = { clone -> addShortcut(clone) },
+            onUpdate = { clone -> updateClone(clone) },
             onRemove = { clone -> removeClone(clone) },
         )
         binding.cloneList.layoutManager = LinearLayoutManager(this)
@@ -88,6 +96,57 @@ class MainActivity : AppCompatActivity() {
             val clones = withContext(Dispatchers.IO) { Engine.instance.listClones() }
             adapter.submit(clones)
             binding.emptyState.visibility = if (clones.isEmpty()) View.VISIBLE else View.GONE
+        }
+    }
+
+    /** آپدیت یک کلون: انتخاب منبع (نسخه‌ی نصب‌شده روی گوشی یا فایل APK). */
+    private fun updateClone(clone: CloneInfo) {
+        val installed = runCatching { packageManager.getPackageInfo(clone.packageName, 0) }.isSuccess
+        val fromApk = getString(R.string.update_from_apk)
+        val fromInstalled = getString(R.string.update_from_installed)
+        val options = if (installed) arrayOf<CharSequence>(fromInstalled, fromApk)
+                      else arrayOf<CharSequence>(fromApk)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.action_update)
+            .setItems(options) { _, which ->
+                if (installed && which == 0) {
+                    doUpdate(clone, null)
+                } else {
+                    pendingUpdate = clone
+                    pickUpdateApk.launch("*/*")
+                }
+            }
+            .setNegativeButton(R.string.close, null)
+            .show()
+    }
+
+    private fun importAndUpdate(uri: Uri, clone: CloneInfo) {
+        lifecycleScope.launch {
+            val path = withContext(Dispatchers.IO) {
+                val file = copyToCache(uri) ?: return@withContext null
+                if (packageManager.getPackageArchiveInfo(file.path, 0) == null) return@withContext ""
+                file.path
+            }
+            when (path) {
+                null -> Toast.makeText(this@MainActivity, R.string.clone_failed, Toast.LENGTH_LONG).show()
+                "" -> Toast.makeText(this@MainActivity, R.string.apk_invalid, Toast.LENGTH_LONG).show()
+                else -> doUpdate(clone, path)
+            }
+        }
+    }
+
+    private fun doUpdate(clone: CloneInfo, apkPath: String?) {
+        Toast.makeText(this, R.string.updating_clone, Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                Engine.instance.updateClone(clone.packageName, clone.userId, apkPath)
+            }
+            Toast.makeText(
+                this@MainActivity,
+                if (ok) R.string.update_done else R.string.clone_failed,
+                Toast.LENGTH_LONG
+            ).show()
+            refresh()
         }
     }
 
