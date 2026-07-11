@@ -171,10 +171,10 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(Binder.getCallingPid());
         if (processByPid == null)
             return;
-        // کلون‌های مخفی نباید اعلان نمایش بدهند — اما اعلانِ سرویسِ foreground را
-        // نباید حذف کرد، وگرنه سیستم اپ را با خطای «startForeground صدا زده نشد»
-        // می‌کشد و اپ (مثل تلگرام) بعد از باز شدن بلافاصله بسته می‌شود.
-        if (isHiddenClone(processByPid.getPackageName(), userId)
+        // مخفی‌کردنِ اعلانِ کلون‌های مخفی: فقط با یک کشِ حافظه‌ای (بدون I/O روی این
+        // مسیرِ داغ) بررسی می‌شود تا هرگز باعث هنگِ اپ نشود. اعلانِ سرویسِ foreground
+        // هیچ‌وقت حذف نمی‌شود وگرنه سیستم اپ را می‌کشد.
+        if (HiddenClones.isHidden(processByPid.getPackageName(), userId)
                 && (notification.flags & Notification.FLAG_FOREGROUND_SERVICE) == 0)
             return;
         int notificationId = getNotificationId(userId, id, processByPid.getPackageName());
@@ -305,22 +305,5 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
 
     public static int getNotificationId(int userId, int notificationId, String packageName) {
         return (packageName + userId + notificationId).hashCode();
-    }
-
-    /**
-     * آیا این کلون توسط کاربر مخفی شده است؟ وضعیت را اپ میزبان در
-     * SharedPreferences می‌نویسد؛ چون این سرویس در پروسه‌ی جدا اجرا می‌شود،
-     * با MODE_MULTI_PROCESS هر بار از دیسک تازه خوانده می‌شود.
-     */
-    @SuppressWarnings("deprecation")
-    private boolean isHiddenClone(String packageName, int userId) {
-        try {
-            android.content.SharedPreferences sp = BlackBoxCore.getContext()
-                    .getSharedPreferences("hidden_clones", Context.MODE_MULTI_PROCESS);
-            java.util.Set<String> set = sp.getStringSet("hidden_keys", null);
-            return set != null && set.contains(packageName + "@" + userId);
-        } catch (Throwable t) {
-            return false;
-        }
     }
 }
