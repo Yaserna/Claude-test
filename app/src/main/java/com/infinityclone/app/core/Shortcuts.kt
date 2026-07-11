@@ -40,7 +40,7 @@ object Shortcuts {
 
         // آیکنِ خودِ کلون (از موتور) در اولویت است؛ اپ‌های کلونِ نصب‌نشده روی گوشی
         // در PM میزبان نیستند و آیکن‌شان فقط از این طریق در دسترس است.
-        val icon = iconDrawable?.let { IconCompat.createWithBitmap(drawableToBitmap(it)) }
+        val icon = iconDrawable?.let { adaptiveIcon(it) }
             ?: appIcon(context, packageName)
             ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher)
 
@@ -56,9 +56,22 @@ object Shortcuts {
 
     private fun appIcon(context: Context, packageName: String): IconCompat? {
         return runCatching {
-            val drawable = context.packageManager.getApplicationIcon(packageName)
-            IconCompat.createWithBitmap(drawableToBitmap(drawable))
+            adaptiveIcon(context.packageManager.getApplicationIcon(packageName))
         }.getOrNull()
+    }
+
+    /**
+     * آیکن تطبیقی (adaptive) می‌سازد تا لانچر حاشیه‌ی سفیدِ آیکن‌های legacy را اضافه
+     * نکند و آیکن کل شکل را پر کند. آیکن اصلی داخل «ناحیه‌ی امن» (۷۲٪ مرکزی) رسم
+     * می‌شود تا وقتی لانچر لبه‌ها را ماسک می‌کند بریده نشود.
+     */
+    private fun adaptiveIcon(drawable: Drawable): IconCompat {
+        val size = 108
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(canvas)
+        return IconCompat.createWithAdaptiveBitmap(bitmap)
     }
 
     private fun drawableToBitmap(drawable: Drawable): Bitmap {
