@@ -28,7 +28,9 @@
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:maxLines="1"
-            android:padding="12dp" />
+            android:padding="12dp"
+            android:textColor="#212121"
+            android:textColorHint="#9E9E9E" />
 
         <TextView
             android:id="@+id/engineWarning"

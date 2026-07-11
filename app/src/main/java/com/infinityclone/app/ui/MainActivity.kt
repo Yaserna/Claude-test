@@ -8,6 +8,7 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -67,7 +68,6 @@ class MainActivity : AppCompatActivity() {
             onClick = { clone -> launchClone(clone) },
             onRename = { clone -> renameClone(clone) },
             onAddShortcut = { clone -> addShortcut(clone) },
-            onUpdate = { clone -> updateClone(clone) },
             onRemove = { clone -> removeClone(clone) },
             onHold = { clone -> onCloneHeld(clone) },
         )
@@ -90,17 +90,13 @@ class MainActivity : AppCompatActivity() {
                 R.id.action_open_link -> {
                     startActivity(Intent(this, LinkRouterActivity::class.java)); true
                 }
-                R.id.action_clone_from_apk -> {
-                    pickApk.launch("*/*"); true
-                }
                 R.id.action_share_log -> { captureAndShareLog(); true }
+                R.id.action_about -> { showAbout(); true }
                 else -> false
             }
         }
 
-        binding.addCloneButton.setOnClickListener {
-            startActivity(Intent(this, InstalledAppsActivity::class.java))
-        }
+        binding.addCloneButton.setOnClickListener { anchor -> showNewCloneMenu(anchor) }
 
         if (!Engine.instance.isReady) {
             binding.engineWarning.visibility = View.VISIBLE
@@ -226,6 +222,51 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButtonText(getString(R.string.close))
             .build()
         prompt.authenticate(info)
+    }
+
+    /** منوی دکمه‌ی «کلون جدید»: از اپ نصب‌شده، از فایل APK، یا آپدیت یک کلون. */
+    private fun showNewCloneMenu(anchor: View) {
+        PopupMenu(this, anchor).apply {
+            menu.add(0, 1, 0, R.string.new_clone_from_installed)
+            menu.add(0, 2, 1, R.string.new_clone_from_apk)
+            menu.add(0, 3, 2, R.string.new_clone_update)
+            setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    1 -> startActivity(Intent(this@MainActivity, InstalledAppsActivity::class.java))
+                    2 -> pickApk.launch("*/*")
+                    3 -> pickCloneToUpdate()
+                }
+                true
+            }
+            show()
+        }
+    }
+
+    /** ابتدا کلونِ هدف را انتخاب می‌کند، سپس منبع آپدیت را می‌پرسد. */
+    private fun pickCloneToUpdate() {
+        val clones = adapter.currentItems()
+        if (clones.isEmpty()) {
+            Toast.makeText(this, R.string.no_clones, Toast.LENGTH_LONG).show()
+            return
+        }
+        val labels: Array<CharSequence> = Array(clones.size) { i ->
+            val c = clones[i]
+            val name = CloneNames.get(this, c.packageName, c.userId) ?: c.label
+            "$name · ${c.packageName} (${c.userId})"
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.pick_clone_to_update)
+            .setItems(labels) { _, which -> updateClone(clones[which]) }
+            .setNegativeButton(R.string.close, null)
+            .show()
+    }
+
+    private fun showAbout() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.about_title)
+            .setMessage(R.string.about_body)
+            .setPositiveButton(R.string.close, null)
+            .show()
     }
 
     /** آپدیت یک کلون: انتخاب منبع (نسخه‌ی نصب‌شده روی گوشی یا فایل APK). */

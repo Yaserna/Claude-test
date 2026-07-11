@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">InfinityClone</string>
+    <string name="app_name">YasClone</string>
+
+    <string name="new_clone_from_installed">کلون از اپ نصب‌شده</string>
+    <string name="new_clone_from_apk">کلون از فایل APK</string>
+    <string name="new_clone_update">آپدیت یک کلون</string>
+    <string name="pick_clone_to_update">کدام کلون آپدیت شود؟</string>
+
+    <string name="action_about">درباره</string>
+    <string name="about_title">درباره‌ی YasClone</string>
+    <string name="about_body">کدنویسی‌شده توسط Yaser D.z\n\n📞 +989035505150\n✉️ Yas.nahouk@gmail.com</string>
 
     <string name="add_clone">کلون جدید</string>
     <string name="pick_app_title">انتخاب اپ برای کلون</string>
