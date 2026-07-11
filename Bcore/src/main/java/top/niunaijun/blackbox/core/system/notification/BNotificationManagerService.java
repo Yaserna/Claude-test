@@ -171,8 +171,11 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(Binder.getCallingPid());
         if (processByPid == null)
             return;
-        // کلون‌های مخفی نباید هیچ اعلانی نمایش بدهند.
-        if (isHiddenClone(processByPid.getPackageName(), userId))
+        // کلون‌های مخفی نباید اعلان نمایش بدهند — اما اعلانِ سرویسِ foreground را
+        // نباید حذف کرد، وگرنه سیستم اپ را با خطای «startForeground صدا زده نشد»
+        // می‌کشد و اپ (مثل تلگرام) بعد از باز شدن بلافاصله بسته می‌شود.
+        if (isHiddenClone(processByPid.getPackageName(), userId)
+                && (notification.flags & Notification.FLAG_FOREGROUND_SERVICE) == 0)
             return;
         int notificationId = getNotificationId(userId, id, processByPid.getPackageName());
 
