@@ -16,5 +16,9 @@
   "account_phone_labels": true,
   "translate_bar_for_all": true,
   "bubble_translate": true,
-  "sleep_inactive_accounts": true
+  "sleep_inactive_accounts": true,
+  "ai_translate": true,
+  "ai_base_url": "https://openrouter.ai/api/v1/chat/completions",
+  "ai_model": "meta-llama/llama-3.3-70b-instruct:free",
+  "ai_api_key": ""
 }

@@ -371,6 +371,102 @@ def main():
                      'uri += "e?client=gtx&sl=" + Uri.encode((fromLng == null || fromLng.length() == 0 || "und".equals(fromLng) || "undefined".equals(fromLng)) ? "auto" : fromLng) + "&tl=" + Uri.encode(toLng)',
                      "translate-engine: unknown source language -> auto")
 
+    if cfg.get("ai_translate", True):
+        print("4.5) AI translation engine (OpenAI-compatible; falls back to Google)")
+        ta2 = "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateAlert2.java"
+        ai_base = cfg.get("ai_base_url", "https://openrouter.ai/api/v1/chat/completions")
+        ai_model = cfg.get("ai_model", "meta-llama/llama-3.3-70b-instruct:free")
+        ai_key = cfg.get("ai_api_key", "")
+        ai_block = (
+            '    // [mod] AI translation config\n'
+            '    public static String AI_BASE_URL = "' + ai_base + '";\n'
+            '    public static String AI_MODEL = "' + ai_model + '";\n'
+            '    public static String AI_API_KEY = "' + ai_key + '";\n'
+            '\n'
+            '    public static boolean isAiTranslateEnabled() {\n'
+            '        return AI_API_KEY != null && AI_API_KEY.length() > 0;\n'
+            '    }\n'
+            '\n'
+            '    public static void aiTranslate(String text, String toLng, Utilities.Callback2<String, Boolean> done) {\n'
+            '        if (done == null) return;\n'
+            '        new Thread() {\n'
+            '            @Override\n'
+            '            public void run() {\n'
+            '                HttpURLConnection connection = null;\n'
+            '                try {\n'
+            '                    String target = (toLng == null || toLng.length() == 0) ? "en" : toLng;\n'
+            '                    org.json.JSONObject sys = new org.json.JSONObject();\n'
+            '                    sys.put("role", "system");\n'
+            '                    sys.put("content", "You are a professional translation engine. Translate the user\'s message into the language with ISO 639-1 code \\"" + target + "\\". Output only the translation itself, with no quotes and no extra words. Preserve line breaks, emojis, @mentions, #hashtags and links exactly.");\n'
+            '                    org.json.JSONObject usr = new org.json.JSONObject();\n'
+            '                    usr.put("role", "user");\n'
+            '                    usr.put("content", text);\n'
+            '                    org.json.JSONArray messages = new org.json.JSONArray();\n'
+            '                    messages.put(sys);\n'
+            '                    messages.put(usr);\n'
+            '                    org.json.JSONObject bodyJson = new org.json.JSONObject();\n'
+            '                    bodyJson.put("model", AI_MODEL);\n'
+            '                    bodyJson.put("messages", messages);\n'
+            '                    bodyJson.put("temperature", 0.2);\n'
+            '                    byte[] payload = bodyJson.toString().getBytes("UTF-8");\n'
+            '\n'
+            '                    connection = (HttpURLConnection) new URI(AI_BASE_URL).toURL().openConnection();\n'
+            '                    connection.setRequestMethod("POST");\n'
+            '                    connection.setRequestProperty("Content-Type", "application/json");\n'
+            '                    connection.setRequestProperty("Authorization", "Bearer " + AI_API_KEY);\n'
+            '                    connection.setConnectTimeout(15000);\n'
+            '                    connection.setReadTimeout(40000);\n'
+            '                    connection.setDoOutput(true);\n'
+            '                    java.io.OutputStream os = connection.getOutputStream();\n'
+            '                    os.write(payload);\n'
+            '                    os.close();\n'
+            '\n'
+            '                    int status = connection.getResponseCode();\n'
+            '                    java.io.InputStream is = (status >= 200 && status < 300) ? connection.getInputStream() : connection.getErrorStream();\n'
+            '                    StringBuilder sb = new StringBuilder();\n'
+            '                    if (is != null) {\n'
+            '                        Reader reader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));\n'
+            '                        int c;\n'
+            '                        while ((c = reader.read()) != -1) {\n'
+            '                            sb.append((char) c);\n'
+            '                        }\n'
+            '                        reader.close();\n'
+            '                    }\n'
+            '                    if (status < 200 || status >= 300) {\n'
+            '                        throw new Exception("AI HTTP " + status);\n'
+            '                    }\n'
+            '                    org.json.JSONObject resp = new org.json.JSONObject(sb.toString());\n'
+            '                    String out = resp.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim();\n'
+            '                    final String finalOut = out;\n'
+            '                    AndroidUtilities.runOnUIThread(() -> {\n'
+            '                        if (done != null) done.run(finalOut, false);\n'
+            '                    });\n'
+            '                } catch (Exception e) {\n'
+            '                    AndroidUtilities.runOnUIThread(() -> {\n'
+            '                        if (done != null) done.run(null, false);\n'
+            '                    });\n'
+            '                } finally {\n'
+            '                    if (connection != null) {\n'
+            '                        try { connection.disconnect(); } catch (Exception ignore) {}\n'
+            '                    }\n'
+            '                }\n'
+            '            }\n'
+            '        }.start();\n'
+            '    }\n'
+            '\n'
+        )
+        anchor = "    public static void alternativeTranslate(String text, String fromLng, String toLng, Utilities.Callback2<String, Boolean> done) {"
+        if not file_contains(ta2, "isAiTranslateEnabled"):
+            replace_once(ta2, anchor, ai_block + anchor, "ai-translate: method")
+        else:
+            print("  - [ai-translate: method] already present, skipped.")
+        replace_once(ta2,
+                     "        if (done == null) return;\n        if (fromLng == null) {",
+                     "        if (done == null) return;\n"
+                     "        if (isAiTranslateEnabled()) { aiTranslate(text, toLng, done); return; } // [mod] AI translation engine\n"
+                     "        if (fromLng == null) {",
+                     "ai-translate: routing")
+
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)
     #    Number = account slot number + 1. Since slots fill in login order,

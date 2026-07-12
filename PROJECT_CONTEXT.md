@@ -314,6 +314,22 @@ public static String getAccountLabel(int account, String fallbackName) {
 ### دکمه‌ی ترجمه‌ی تک‌پیام پیش‌فرض روشن
 `TranslateController`: پیش‌فرضِ `translate_button` → true.
 
+### موتورِ ترجمه‌ی هوشِ مصنوعی (اختیاری، کیفیتِ بالا)
+- گلوگاهِ هر دو مسیرِ ترجمه `TranslateAlert2.alternativeTranslate(text, from, to, cb)` است
+  (کلِ چت: `TranslateController` خطِ ~۱۰۶۰؛ حباب: از همان مسیر). پس یک متدِ AI هر دو را می‌گیرد.
+- افزوده شد: `aiTranslate(text, toLng, done)` که POST به یک endpointِ **OpenAI-compatible**
+  (chat/completions) می‌زند؛ ۳ ثابت: `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`. اگر کلید خالی باشد
+  `isAiTranslateEnabled()=false` و به گوگل fallback می‌شود. در ابتدای `alternativeTranslate`:
+  `if (isAiTranslateEnabled()) { aiTranslate(text, toLng, done); return; }`.
+- از نامِ کاملِ کلاس (`org.json.JSONObject`, `java.io.OutputStream/InputStream`) استفاده شد تا
+  **نیازی به تغییرِ importها نباشد**. پارس: `choices[0].message.content`.
+- کلید داخلِ کد **کامیت نمی‌شود**؛ اسکریپتِ مستقلِ `ai_translate.py/.bat` (بکاپ `.bak12`) کلید را
+  از کاربر می‌پرسد و در سورسِ محلی می‌گذارد (interactive). apply_mods بخش ۴.۵ از `build_config.json`
+  می‌خواند (`ai_translate`/`ai_base_url`/`ai_model`/`ai_api_key`؛ کلیدِ خالیِ پیش‌فرض = رفتارِ گوگل).
+- پیش‌فرض: OpenRouter + مدلِ رایگانِ `:free`. هشدار: ترجمه‌ی **کلِ چت** هر پیام = یک درخواست؛
+  مدلِ رایگان سقفِ نرخ دارد، پس ممکن است چند پیام fail شود (تک‌پیام مشکلی ندارد).
+- **باقی‌مانده:** دکمه‌ی ترجمه‌ی کادرِ تایپ (compose) با همین موتور — مرحله‌ی بعد.
+
 ### باگ `sl=und` (ترجمه اغلب انجام نمی‌شد — رفع شد)
 - علت: وقتی تشخیصِ زبانِ مبدأ قطعی نیست (ML Kit روی گوشیِ کاربر بلاک است) زبان `und` می‌شود
   و کد `sl=und` می‌فرستد؛ گوگل `sl=und` و `sl=""` را با **HTTP 400** رد می‌کند → ترجمه بی‌صدا شکست می‌خورد.
