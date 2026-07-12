@@ -372,19 +372,17 @@ def main():
                      "translate-engine: unknown source language -> auto")
 
     if cfg.get("ai_translate", True):
-        print("4.5) AI translation engine (OpenAI-compatible; falls back to Google)")
+        print("4.5) AI translation engine + in-app settings (falls back to Google)")
         ta2 = "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateAlert2.java"
-        ai_base = cfg.get("ai_base_url", "https://openrouter.ai/api/v1/chat/completions")
-        ai_model = cfg.get("ai_model", "meta-llama/llama-3.3-70b-instruct:free")
-        ai_key = cfg.get("ai_api_key", "")
+        lsa = "TMessagesProj/src/main/java/org/telegram/ui/LanguageSelectActivity.java"
+        default_model = "meta-llama/llama-3.3-70b-instruct:free"
+        # AI method reads key/model from the app settings (SharedPreferences),
+        # set in-app at Settings > Language > translate icon. No key in code.
         ai_block = (
-            '    // [mod] AI translation config\n'
-            '    public static String AI_BASE_URL = "' + ai_base + '";\n'
-            '    public static String AI_MODEL = "' + ai_model + '";\n'
-            '    public static String AI_API_KEY = "' + ai_key + '";\n'
-            '\n'
+            '    // [mod] AI translation: key/model come from the app settings.\n'
             '    public static boolean isAiTranslateEnabled() {\n'
-            '        return AI_API_KEY != null && AI_API_KEY.length() > 0;\n'
+            '        android.content.SharedPreferences p = org.telegram.messenger.MessagesController.getGlobalMainSettings();\n'
+            '        return p.getBoolean("ai_translate_enabled", false) && p.getString("ai_translate_key", "").length() > 0;\n'
             '    }\n'
             '\n'
             '    public static void aiTranslate(String text, String toLng, Utilities.Callback2<String, Boolean> done) {\n'
@@ -394,6 +392,10 @@ def main():
             '            public void run() {\n'
             '                HttpURLConnection connection = null;\n'
             '                try {\n'
+            '                    android.content.SharedPreferences p = org.telegram.messenger.MessagesController.getGlobalMainSettings();\n'
+            '                    String apiKey = p.getString("ai_translate_key", "");\n'
+            '                    String model = p.getString("ai_translate_model", "' + default_model + '");\n'
+            '                    String baseUrl = p.getString("ai_translate_url", "https://openrouter.ai/api/v1/chat/completions");\n'
             '                    String target = (toLng == null || toLng.length() == 0) ? "en" : toLng;\n'
             '                    org.json.JSONObject sys = new org.json.JSONObject();\n'
             '                    sys.put("role", "system");\n'
@@ -405,15 +407,15 @@ def main():
             '                    messages.put(sys);\n'
             '                    messages.put(usr);\n'
             '                    org.json.JSONObject bodyJson = new org.json.JSONObject();\n'
-            '                    bodyJson.put("model", AI_MODEL);\n'
+            '                    bodyJson.put("model", model);\n'
             '                    bodyJson.put("messages", messages);\n'
             '                    bodyJson.put("temperature", 0.2);\n'
             '                    byte[] payload = bodyJson.toString().getBytes("UTF-8");\n'
             '\n'
-            '                    connection = (HttpURLConnection) new URI(AI_BASE_URL).toURL().openConnection();\n'
+            '                    connection = (HttpURLConnection) new URI(baseUrl).toURL().openConnection();\n'
             '                    connection.setRequestMethod("POST");\n'
             '                    connection.setRequestProperty("Content-Type", "application/json");\n'
-            '                    connection.setRequestProperty("Authorization", "Bearer " + AI_API_KEY);\n'
+            '                    connection.setRequestProperty("Authorization", "Bearer " + apiKey);\n'
             '                    connection.setConnectTimeout(15000);\n'
             '                    connection.setReadTimeout(40000);\n'
             '                    connection.setDoOutput(true);\n'
@@ -466,6 +468,70 @@ def main():
                      "        if (isAiTranslateEnabled()) { aiTranslate(text, toLng, done); return; } // [mod] AI translation engine\n"
                      "        if (fromLng == null) {",
                      "ai-translate: routing")
+        # In-app settings dialog in Settings > Language (a translate icon in the
+        # top bar opens it). Fully-qualified names avoid touching imports.
+        lsa_method = (
+            '    private void showAiTranslateSettings() {\n'
+            '        android.content.Context context = getParentActivity();\n'
+            '        if (context == null) {\n'
+            '            return;\n'
+            '        }\n'
+            '        final android.content.SharedPreferences prefs = MessagesController.getGlobalMainSettings();\n'
+            '        android.widget.LinearLayout ll = new android.widget.LinearLayout(context);\n'
+            '        ll.setOrientation(android.widget.LinearLayout.VERTICAL);\n'
+            '        int pad = org.telegram.messenger.AndroidUtilities.dp(22);\n'
+            '        ll.setPadding(pad, org.telegram.messenger.AndroidUtilities.dp(8), pad, 0);\n'
+            '        final android.widget.CheckBox enableBox = new android.widget.CheckBox(context);\n'
+            '        enableBox.setText("Use AI translation (off = Google)");\n'
+            '        enableBox.setChecked(prefs.getBoolean("ai_translate_enabled", false));\n'
+            '        ll.addView(enableBox);\n'
+            '        final EditText keyEdit = new EditText(context);\n'
+            '        keyEdit.setHint("API key (sk-or-v1-...)");\n'
+            '        keyEdit.setSingleLine(true);\n'
+            '        keyEdit.setText(prefs.getString("ai_translate_key", ""));\n'
+            '        ll.addView(keyEdit);\n'
+            '        final EditText modelEdit = new EditText(context);\n'
+            '        modelEdit.setHint("Model id");\n'
+            '        modelEdit.setSingleLine(true);\n'
+            '        modelEdit.setText(prefs.getString("ai_translate_model", "' + default_model + '"));\n'
+            '        ll.addView(modelEdit);\n'
+            '        AlertDialog.Builder builder = new AlertDialog.Builder(context);\n'
+            '        builder.setTitle("YasTel AI Translate");\n'
+            '        builder.setView(ll);\n'
+            '        builder.setPositiveButton(LocaleController.getString(R.string.Save), (dialog, which) -> {\n'
+            '            prefs.edit()\n'
+            '                .putBoolean("ai_translate_enabled", enableBox.isChecked())\n'
+            '                .putString("ai_translate_key", keyEdit.getText().toString().trim())\n'
+            '                .putString("ai_translate_model", modelEdit.getText().toString().trim())\n'
+            '                .apply();\n'
+            '        });\n'
+            '        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);\n'
+            '        showDialog(builder.create());\n'
+            '    }\n'
+            '\n'
+        )
+        if not file_contains(lsa, "showAiTranslateSettings"):
+            replace_once(lsa,
+                         "        ActionBarMenu menu = actionBar.createMenu();\n",
+                         "        ActionBarMenu menu = actionBar.createMenu();\n"
+                         "        menu.addItem(1001, R.drawable.msg_translate); // [mod] YasTel AI translate settings\n",
+                         "ai-translate: settings menu item")
+            replace_once(lsa,
+                         "                if (id == -1) {\n"
+                         "                    finishFragment();\n"
+                         "                }",
+                         "                if (id == -1) {\n"
+                         "                    finishFragment();\n"
+                         "                } else if (id == 1001) { // [mod] YasTel AI translate settings\n"
+                         "                    showAiTranslateSettings();\n"
+                         "                }",
+                         "ai-translate: settings click")
+            replace_once(lsa,
+                         "    @Override\n    public View createView(Context context) {",
+                         lsa_method + "    @Override\n    public View createView(Context context) {",
+                         "ai-translate: settings method")
+        else:
+            print("  - [ai-translate: in-app settings] already present, skipped.")
 
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)

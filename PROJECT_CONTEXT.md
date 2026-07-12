@@ -323,11 +323,17 @@ public static String getAccountLabel(int account, String fallbackName) {
   `if (isAiTranslateEnabled()) { aiTranslate(text, toLng, done); return; }`.
 - از نامِ کاملِ کلاس (`org.json.JSONObject`, `java.io.OutputStream/InputStream`) استفاده شد تا
   **نیازی به تغییرِ importها نباشد**. پارس: `choices[0].message.content`.
-- کلید داخلِ کد **کامیت نمی‌شود**؛ اسکریپتِ مستقلِ `ai_translate.py/.bat` (بکاپ `.bak12`) کلید را
-  از کاربر می‌پرسد و در سورسِ محلی می‌گذارد (interactive). apply_mods بخش ۴.۵ از `build_config.json`
-  می‌خواند (`ai_translate`/`ai_base_url`/`ai_model`/`ai_api_key`؛ کلیدِ خالیِ پیش‌فرض = رفتارِ گوگل).
-- پیش‌فرض: OpenRouter + مدلِ رایگانِ `:free`. هشدار: ترجمه‌ی **کلِ چت** هر پیام = یک درخواست؛
-  مدلِ رایگان سقفِ نرخ دارد، پس ممکن است چند پیام fail شود (تک‌پیام مشکلی ندارد).
+- **کلید در خودِ اپ ست می‌شود (نه در کد):** `isAiTranslateEnabled()`/`aiTranslate()` مقادیر را از
+  `MessagesController.getGlobalMainSettings()` می‌خوانند: کلیدهای `ai_translate_enabled` (bool)،
+  `ai_translate_key`، `ai_translate_model`، `ai_translate_url`. پس تغییرِ کلید **بدونِ بیلد**.
+- **UIِ تنظیمات:** در `LanguageSelectActivity` (Settings › Language) یک آیتمِ منو با آیکنِ
+  `R.drawable.msg_translate` (id=1001) اضافه شد که پنجره‌ی `showAiTranslateSettings()` را باز می‌کند
+  (چک‌باکسِ روشن/خاموش + فیلدِ کلید + فیلدِ مدل؛ ذخیره در SharedPreferences). از نامِ کاملِ کلاس
+  استفاده شد تا importها دست‌نخورده بمانند.
+- اسکریپتِ `ai_translate.py/.bat` (بکاپ `.bak12`) هر دو فایل را پچ می‌کند و نسخه‌ی قدیمیِ
+  baked-key را خودکار **مهاجرت** می‌دهد (restore از `.bak12` بعد re-inject). apply_mods بخش ۴.۵.
+- پیش‌فرضِ مدل: `meta-llama/llama-3.3-70b-instruct:free` (OpenRouter). هشدار: ترجمه‌ی **کلِ چت**
+  هر پیام = یک درخواست؛ مدلِ رایگان سقفِ نرخ دارد (تک‌پیام مشکلی ندارد).
 - **باقی‌مانده:** دکمه‌ی ترجمه‌ی کادرِ تایپ (compose) با همین موتور — مرحله‌ی بعد.
 
 ### باگ `sl=und` (ترجمه اغلب انجام نمی‌شد — رفع شد)

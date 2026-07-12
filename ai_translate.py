@@ -2,51 +2,48 @@
 # -*- coding: ascii -*-
 # ai_translate.py
 # ---------------
-# Upgrades the translation engine from Google's basic word-by-word service to
-# an AI model (OpenAI-compatible chat API, e.g. OpenRouter free models, OpenAI,
-# Groq, Together, ...). Both whole-chat translation and single-bubble
-# translation go through TranslateAlert2.alternativeTranslate(), so wiring the
-# AI there upgrades BOTH at once.
+# Upgrades translation to an AI model (OpenAI-compatible chat API, e.g.
+# OpenRouter free models) AND lets you set the API key/model INSIDE the app --
+# no rebuild needed to change the key later.
 #
-# How to use:
-#   1) Make a free API key (e.g. https://openrouter.ai -> Keys). Free models
-#      exist (their id ends with ":free"); the key itself is free (no card).
-#   2) Run this script (double-click the .bat). It asks for your API key, the
-#      model id, and the base URL. Press Enter to keep the shown default.
-#   3) Build normally in Android Studio and reinstall.
+# What it does (Java only, no native recompile):
+#   1) TranslateAlert2.java: adds aiTranslate() which POSTs to the AI endpoint,
+#      reading the key/model from the app's own settings (SharedPreferences).
+#      Both whole-chat and single-bubble translation route through it when the
+#      key is set and AI is enabled; otherwise it falls back to Google.
+#   2) LanguageSelectActivity.java (Settings > Language): adds a translate icon
+#      in the top bar that opens a "YasTel AI Translate" dialog where you turn
+#      it on/off and paste your API key + model id.
 #
-# The key is written ONLY into your local source (never committed anywhere).
-# If the key is left empty, the app keeps using Google (safe fallback).
-# Re-run any time to change the key/model. Creates one-time .bak12 backups.
-# Java-only change: a NORMAL Gradle build is enough.
+# In the app: Settings > Language > tap the translate icon (top-right) ->
+# enable, paste your free OpenRouter key (openrouter.ai -> Keys), Save.
+#
+# Safe to run multiple times (idempotent). Migrates the older baked-key version
+# of this script automatically (via its .bak12 backup). Creates one-time .bak12
+# backups. Java-only change: a NORMAL Gradle build is enough.
 
 import os
-import re
 import sys
 
 SKIP_DIRS = {".git", "build", ".cxx", ".gradle", "intermediates", ".idea", "node_modules"}
 
-TA2_REL = os.path.join("TMessagesProj", "src", "main", "java", "org", "telegram",
-                       "ui", "Components", "TranslateAlert2.java")
+JAVA = os.path.join("TMessagesProj", "src", "main", "java", "org", "telegram")
+TA2_REL = os.path.join(JAVA, "ui", "Components", "TranslateAlert2.java")
+LSA_REL = os.path.join(JAVA, "ui", "LanguageSelectActivity.java")
 
-DEFAULT_BASE = "https://openrouter.ai/api/v1/chat/completions"
+applied = 0
+skipped = 0
+warnings = []
+
 DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
-ANCHOR_METHOD = "    public static void alternativeTranslate(String text, String fromLng, String toLng, Utilities.Callback2<String, Boolean> done) {"
-ROUTE_OLD = ("        if (done == null) return;\n"
-             "        if (fromLng == null) {")
-ROUTE_NEW = ("        if (done == null) return;\n"
-             "        if (isAiTranslateEnabled()) { aiTranslate(text, toLng, done); return; } // [mod] AI translation engine\n"
-             "        if (fromLng == null) {")
-
-AI_BLOCK = (
-    "    // [mod] AI translation config (set by the ai_translate script)\n"
-    "    public static String AI_BASE_URL = \"__BASE__\";\n"
-    "    public static String AI_MODEL = \"__MODEL__\";\n"
-    "    public static String AI_API_KEY = \"__KEY__\";\n"
-    "\n"
+# ---- TranslateAlert2: AI method (reads key/model from app settings) ----------
+AI_METHOD = (
+    "    // [mod] AI translation: key/model come from the app settings\n"
+    "    // (Settings > Language > translate icon). Falls back to Google if off.\n"
     "    public static boolean isAiTranslateEnabled() {\n"
-    "        return AI_API_KEY != null && AI_API_KEY.length() > 0;\n"
+    "        android.content.SharedPreferences p = org.telegram.messenger.MessagesController.getGlobalMainSettings();\n"
+    "        return p.getBoolean(\"ai_translate_enabled\", false) && p.getString(\"ai_translate_key\", \"\").length() > 0;\n"
     "    }\n"
     "\n"
     "    public static void aiTranslate(String text, String toLng, Utilities.Callback2<String, Boolean> done) {\n"
@@ -56,6 +53,10 @@ AI_BLOCK = (
     "            public void run() {\n"
     "                HttpURLConnection connection = null;\n"
     "                try {\n"
+    "                    android.content.SharedPreferences p = org.telegram.messenger.MessagesController.getGlobalMainSettings();\n"
+    "                    String apiKey = p.getString(\"ai_translate_key\", \"\");\n"
+    "                    String model = p.getString(\"ai_translate_model\", \"" + DEFAULT_MODEL + "\");\n"
+    "                    String baseUrl = p.getString(\"ai_translate_url\", \"https://openrouter.ai/api/v1/chat/completions\");\n"
     "                    String target = (toLng == null || toLng.length() == 0) ? \"en\" : toLng;\n"
     "                    org.json.JSONObject sys = new org.json.JSONObject();\n"
     "                    sys.put(\"role\", \"system\");\n"
@@ -67,15 +68,15 @@ AI_BLOCK = (
     "                    messages.put(sys);\n"
     "                    messages.put(usr);\n"
     "                    org.json.JSONObject bodyJson = new org.json.JSONObject();\n"
-    "                    bodyJson.put(\"model\", AI_MODEL);\n"
+    "                    bodyJson.put(\"model\", model);\n"
     "                    bodyJson.put(\"messages\", messages);\n"
     "                    bodyJson.put(\"temperature\", 0.2);\n"
     "                    byte[] payload = bodyJson.toString().getBytes(\"UTF-8\");\n"
     "\n"
-    "                    connection = (HttpURLConnection) new URI(AI_BASE_URL).toURL().openConnection();\n"
+    "                    connection = (HttpURLConnection) new URI(baseUrl).toURL().openConnection();\n"
     "                    connection.setRequestMethod(\"POST\");\n"
     "                    connection.setRequestProperty(\"Content-Type\", \"application/json\");\n"
-    "                    connection.setRequestProperty(\"Authorization\", \"Bearer \" + AI_API_KEY);\n"
+    "                    connection.setRequestProperty(\"Authorization\", \"Bearer \" + apiKey);\n"
     "                    connection.setConnectTimeout(15000);\n"
     "                    connection.setReadTimeout(40000);\n"
     "                    connection.setDoOutput(true);\n"
@@ -117,6 +118,66 @@ AI_BLOCK = (
     "    }\n"
     "\n"
 )
+TA2_ANCHOR = "    public static void alternativeTranslate(String text, String fromLng, String toLng, Utilities.Callback2<String, Boolean> done) {"
+TA2_ROUTE_OLD = ("        if (done == null) return;\n"
+                 "        if (fromLng == null) {")
+TA2_ROUTE_NEW = ("        if (done == null) return;\n"
+                 "        if (isAiTranslateEnabled()) { aiTranslate(text, toLng, done); return; } // [mod] AI translation engine\n"
+                 "        if (fromLng == null) {")
+
+# ---- LanguageSelectActivity: settings dialog ---------------------------------
+LSA_METHOD = (
+    "    private void showAiTranslateSettings() {\n"
+    "        android.content.Context context = getParentActivity();\n"
+    "        if (context == null) {\n"
+    "            return;\n"
+    "        }\n"
+    "        final android.content.SharedPreferences prefs = MessagesController.getGlobalMainSettings();\n"
+    "        android.widget.LinearLayout ll = new android.widget.LinearLayout(context);\n"
+    "        ll.setOrientation(android.widget.LinearLayout.VERTICAL);\n"
+    "        int pad = org.telegram.messenger.AndroidUtilities.dp(22);\n"
+    "        ll.setPadding(pad, org.telegram.messenger.AndroidUtilities.dp(8), pad, 0);\n"
+    "        final android.widget.CheckBox enableBox = new android.widget.CheckBox(context);\n"
+    "        enableBox.setText(\"Use AI translation (off = Google)\");\n"
+    "        enableBox.setChecked(prefs.getBoolean(\"ai_translate_enabled\", false));\n"
+    "        ll.addView(enableBox);\n"
+    "        final EditText keyEdit = new EditText(context);\n"
+    "        keyEdit.setHint(\"API key (sk-or-v1-...)\");\n"
+    "        keyEdit.setSingleLine(true);\n"
+    "        keyEdit.setText(prefs.getString(\"ai_translate_key\", \"\"));\n"
+    "        ll.addView(keyEdit);\n"
+    "        final EditText modelEdit = new EditText(context);\n"
+    "        modelEdit.setHint(\"Model id\");\n"
+    "        modelEdit.setSingleLine(true);\n"
+    "        modelEdit.setText(prefs.getString(\"ai_translate_model\", \"" + DEFAULT_MODEL + "\"));\n"
+    "        ll.addView(modelEdit);\n"
+    "        AlertDialog.Builder builder = new AlertDialog.Builder(context);\n"
+    "        builder.setTitle(\"YasTel AI Translate\");\n"
+    "        builder.setView(ll);\n"
+    "        builder.setPositiveButton(LocaleController.getString(R.string.Save), (dialog, which) -> {\n"
+    "            prefs.edit()\n"
+    "                .putBoolean(\"ai_translate_enabled\", enableBox.isChecked())\n"
+    "                .putString(\"ai_translate_key\", keyEdit.getText().toString().trim())\n"
+    "                .putString(\"ai_translate_model\", modelEdit.getText().toString().trim())\n"
+    "                .apply();\n"
+    "        });\n"
+    "        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);\n"
+    "        showDialog(builder.create());\n"
+    "    }\n"
+    "\n"
+)
+LSA_MENU_OLD = "        ActionBarMenu menu = actionBar.createMenu();\n"
+LSA_MENU_NEW = ("        ActionBarMenu menu = actionBar.createMenu();\n"
+                "        menu.addItem(1001, R.drawable.msg_translate); // [mod] YasTel AI translate settings\n")
+LSA_CLICK_OLD = ("                if (id == -1) {\n"
+                 "                    finishFragment();\n"
+                 "                }")
+LSA_CLICK_NEW = ("                if (id == -1) {\n"
+                 "                    finishFragment();\n"
+                 "                } else if (id == 1001) { // [mod] YasTel AI translate settings\n"
+                 "                    showAiTranslateSettings();\n"
+                 "                }")
+LSA_ANCHOR = "    @Override\n    public View createView(Context context) {"
 
 
 def find_project_root():
@@ -150,23 +211,78 @@ def write(path, text):
         f.write(text)
 
 
-def set_const(text, name, value):
-    # replace  public static String NAME = "...";  keeping the value ASCII-safe
-    value = value.replace("\\", "\\\\").replace('"', '\\"')
-    pat = r'(public static String %s = ")(.*?)(";)' % re.escape(name)
-    return re.sub(pat, lambda m: m.group(1) + value + m.group(3), text, count=1)
+def replace_once(text, old, new, label):
+    global applied
+    count = text.count(old)
+    if count != 1:
+        warnings.append("[%s] anchor found %d times (expected 1)" % (label, count))
+        print("  !! [%s] anchor found %d times, skipped" % (label, count))
+        return text, False
+    print("  OK [%s]" % label)
+    applied += 1
+    return text.replace(old, new, 1), True
 
 
-def ask(prompt, current, default):
-    shown = current if current else default
-    try:
-        val = raw_input("%s [%s]: " % (prompt, shown))  # py2
-    except NameError:
-        val = input("%s [%s]: " % (prompt, shown))
-    val = val.strip()
-    if not val:
-        return current if current else default
-    return val
+def patch_ta2(root):
+    global skipped
+    path = os.path.join(root, TA2_REL)
+    text = read(path)
+    # migrate the older baked-key version of this script, if present
+    if "AI_API_KEY" in text and "ai_translate_key" not in text:
+        bak = path + ".bak12"
+        if os.path.isfile(bak):
+            print("  .. migrating older baked-key AI version (restoring .bak12)")
+            text = read(bak)
+        else:
+            warnings.append("old baked-key AI version found but no .bak12 to "
+                            "restore; revert TranslateAlert2.java manually first")
+            print("  !! old AI version present, cannot migrate (no backup)")
+            return
+    changed = False
+    if "ai_translate_key" in text and "isAiTranslateEnabled" in text:
+        print("  -- [ta2: AI method] already applied, skipped")
+        skipped += 1
+    else:
+        if text.count(TA2_ANCHOR) != 1:
+            warnings.append("[ta2: AI method] anchor not found once")
+            print("  !! [ta2: AI method] anchor not found, skipped")
+            return
+        text = text.replace(TA2_ANCHOR, AI_METHOD + TA2_ANCHOR, 1)
+        print("  OK [ta2: AI method]")
+        changed = True
+    if "aiTranslate(text, toLng, done); return; } // [mod] AI translation engine" in text:
+        print("  -- [ta2: routing] already applied, skipped")
+        skipped += 1
+    else:
+        text, ok = replace_once(text, TA2_ROUTE_OLD, TA2_ROUTE_NEW, "ta2: routing")
+        changed = changed or ok
+    if changed or True:
+        write(path, text)
+
+
+def patch_lsa(root):
+    global skipped
+    path = os.path.join(root, LSA_REL)
+    if not os.path.isfile(path):
+        warnings.append("LanguageSelectActivity.java not found")
+        print("  !! LanguageSelectActivity.java NOT FOUND")
+        return
+    text = read(path)
+    if "showAiTranslateSettings" in text:
+        print("  -- [settings UI] already applied, skipped")
+        skipped += 1
+        return
+    text, _ = replace_once(text, LSA_MENU_OLD, LSA_MENU_NEW, "lsa: menu item")
+    text, _ = replace_once(text, LSA_CLICK_OLD, LSA_CLICK_NEW, "lsa: click handler")
+    if text.count(LSA_ANCHOR) == 1:
+        text = text.replace(LSA_ANCHOR, LSA_METHOD + LSA_ANCHOR, 1)
+        print("  OK [lsa: settings method]")
+        global applied
+        applied += 1
+    else:
+        warnings.append("[lsa: settings method] createView anchor not found once")
+        print("  !! [lsa: settings method] anchor not found, skipped")
+    write(path, text)
 
 
 def main():
@@ -175,51 +291,19 @@ def main():
     if root is None:
         sys.exit("ERROR: Telegram source not found. Put this script next to (or "
                  "inside) the folder that contains TMessagesProj and run again.")
-    path = os.path.join(root, TA2_REL)
     print("Project root: %s\n" % root)
 
-    text = read(path)
+    print("1) AI translate engine in TranslateAlert2")
+    patch_ta2(root)
+    print("\n2) In-app settings in Settings > Language")
+    patch_lsa(root)
 
-    # 1) inject the AI method + config block once
-    if "isAiTranslateEnabled" not in text:
-        if text.count(ANCHOR_METHOD) != 1:
-            sys.exit("ERROR: alternativeTranslate anchor not found once (source differs).")
-        block = AI_BLOCK.replace("__BASE__", DEFAULT_BASE).replace("__MODEL__", DEFAULT_MODEL).replace("__KEY__", "")
-        text = text.replace(ANCHOR_METHOD, block + ANCHOR_METHOD, 1)
-        print("  OK  AI translate method injected")
-    else:
-        print("  --  AI translate method already present")
-
-    # 2) route alternativeTranslate through AI when a key is set
-    if "aiTranslate(text, toLng, done); return; } // [mod] AI translation engine" not in text:
-        if text.count(ROUTE_OLD) != 1:
-            sys.exit("ERROR: routing anchor not found once (source differs).")
-        text = text.replace(ROUTE_OLD, ROUTE_NEW, 1)
-        print("  OK  routing added (AI when key set, else Google)")
-    else:
-        print("  --  routing already present")
-
-    # read current values back
-    def cur(name):
-        m = re.search(r'public static String %s = "(.*?)";' % name, text)
-        return m.group(1) if m else ""
-
-    print("\nEnter your AI settings (press Enter to keep the shown value):")
-    key = ask("  API key", cur("AI_API_KEY"), "")
-    model = ask("  Model id", cur("AI_MODEL"), DEFAULT_MODEL)
-    base = ask("  Base URL", cur("AI_BASE_URL"), DEFAULT_BASE)
-
-    text = set_const(text, "AI_API_KEY", key)
-    text = set_const(text, "AI_MODEL", model)
-    text = set_const(text, "AI_BASE_URL", base)
-
-    write(path, text)
-
-    print("\n=== Saved ===")
-    print("  key set  : %s" % ("YES" if key else "NO (app will use Google)"))
-    print("  model    : %s" % model)
-    print("  base URL : %s" % base)
-    print("\nBuild normally in Android Studio and reinstall.")
+    print("\n=== RESULT: %d applied, %d already done, %d warnings ===" % (applied, skipped, len(warnings)))
+    for w in warnings:
+        print("  WARNING: " + w)
+    if not warnings:
+        print("All good. Build normally, then in the app open")
+        print("Settings > Language > tap the translate icon (top bar) to set your key.")
 
 
 if __name__ == "__main__":
