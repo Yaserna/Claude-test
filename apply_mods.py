@@ -533,6 +533,83 @@ def main():
         else:
             print("  - [ai-translate: in-app settings] already present, skipped.")
 
+    if cfg.get("fix_bidi", True):
+        print("4.6) Fix mixed RTL/LTR scrambling in translated text")
+        ta2 = "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateAlert2.java"
+        fixbidi_method = (
+            '    // [mod] fix bidi: keep mixed RTL/LTR translated text from scrambling.\n'
+            '    public static String fixBidi(String text, String toLng) {\n'
+            '        if (text == null || text.length() == 0) {\n'
+            '            return text;\n'
+            '        }\n'
+            '        String lng = toLng == null ? "" : toLng.toLowerCase();\n'
+            '        boolean rtl = lng.startsWith("fa") || lng.startsWith("ar") || lng.startsWith("he") || lng.startsWith("iw") || lng.startsWith("ur") || lng.startsWith("ps") || lng.startsWith("ckb") || lng.startsWith("sd") || lng.startsWith("ug") || lng.startsWith("yi") || lng.startsWith("dv");\n'
+            '        if (!rtl) {\n'
+            '            return text;\n'
+            '        }\n'
+            "        final char RLM = '\\u200F';\n"
+            "        final char LRI = '\\u2066';\n"
+            "        final char PDI = '\\u2069';\n"
+            '        String[] lines = text.split("\\n", -1);\n'
+            '        StringBuilder out = new StringBuilder();\n'
+            '        for (int li = 0; li < lines.length; li++) {\n'
+            '            if (li > 0) {\n'
+            "                out.append('\\n');\n"
+            '            }\n'
+            '            String line = lines[li];\n'
+            '            out.append(RLM);\n'
+            '            int i = 0, n = line.length();\n'
+            '            while (i < n) {\n'
+            '                char c = line.charAt(i);\n'
+            '                if (c >= 0x20 && c <= 0x7E) {\n'
+            '                    int j = i;\n'
+            '                    boolean alnum = false;\n'
+            '                    while (j < n && line.charAt(j) >= 0x20 && line.charAt(j) <= 0x7E) {\n'
+            '                        char cj = line.charAt(j);\n'
+            "                        if ((cj >= 'A' && cj <= 'Z') || (cj >= 'a' && cj <= 'z') || (cj >= '0' && cj <= '9')) {\n"
+            '                            alnum = true;\n'
+            '                        }\n'
+            '                        j++;\n'
+            '                    }\n'
+            '                    String run = line.substring(i, j);\n'
+            '                    if (alnum) {\n'
+            '                        out.append(LRI).append(run).append(PDI);\n'
+            '                    } else {\n'
+            '                        out.append(run);\n'
+            '                    }\n'
+            '                    i = j;\n'
+            '                } else {\n'
+            '                    out.append(c);\n'
+            '                    i++;\n'
+            '                }\n'
+            '            }\n'
+            '        }\n'
+            '        return out.toString();\n'
+            '    }\n'
+            '\n'
+        )
+        method_anchor = "    public static void alternativeTranslate(String text, String fromLng, String toLng, Utilities.Callback2<String, Boolean> done) {"
+        if not file_contains(ta2, "public static String fixBidi("):
+            replace_once(ta2, method_anchor, fixbidi_method + method_anchor, "bidi: helper")
+        else:
+            print("  - [bidi: helper] already present, skipped.")
+        if file_contains(ta2, 'String out = resp.getJSONArray("choices")') and \
+           not file_contains(ta2, "out = fixBidi(out, toLng);"):
+            replace_once(ta2,
+                         '                    String out = resp.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim();\n',
+                         '                    String out = resp.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim();\n'
+                         '                    out = fixBidi(out, toLng);\n',
+                         "bidi: AI output")
+        replace_once(ta2,
+                     "                    if (text.length() > 0 && text.charAt(0) == '\\n')\n"
+                     '                        result = "\\n" + result;\n'
+                     "                    final String finalResult = result;",
+                     "                    if (text.length() > 0 && text.charAt(0) == '\\n')\n"
+                     '                        result = "\\n" + result;\n'
+                     "                    result = fixBidi(result, toLng);\n"
+                     "                    final String finalResult = result;",
+                     "bidi: Google output")
+
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)
     #    Number = account slot number + 1. Since slots fill in login order,

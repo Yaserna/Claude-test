@@ -17,5 +17,6 @@
   "translate_bar_for_all": true,
   "bubble_translate": true,
   "sleep_inactive_accounts": true,
-  "ai_translate": true
+  "ai_translate": true,
+  "fix_bidi": true
 }
