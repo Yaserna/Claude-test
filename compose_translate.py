@@ -31,15 +31,16 @@ applied = 0
 skipped = 0
 warnings = []
 
-# ---- 1) the button in the input bar (mirrors the existing aiButton) ----------
-CEV_ANCHOR = "        textFieldContainer.addView(aiButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.TOP | Gravity.RIGHT, 0, 1, 0, 0));\n"
+# ---- 1) the button in the input bar (left side, next to the emoji button, so
+#         it never overlaps the dynamic attach / bot / gift buttons) -----------
+CEV_ANCHOR = "        setEmojiButtonImage(false, false);\n"
 CEV_BUTTON = (
-    "        final android.widget.ImageView translateComposeButton = new android.widget.ImageView(context); // [mod] compose translate\n"
+    "        final android.widget.ImageView translateComposeButton = new android.widget.ImageView(context); // [mod] compose translate (left)\n"
     "        translateComposeButton.setImageResource(R.drawable.msg_translate);\n"
     "        translateComposeButton.setScaleType(android.widget.ImageView.ScaleType.CENTER);\n"
     "        translateComposeButton.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_glass_defaultIcon), PorterDuff.Mode.MULTIPLY));\n"
     "        translateComposeButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_CIRCLE_20DP, dp(16)));\n"
-    "        textFieldContainer.addView(translateComposeButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.TOP | Gravity.RIGHT, 0, 1, DEFAULT_HEIGHT, 0));\n"
+    "        messageEditTextContainer.addView(translateComposeButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.BOTTOM | Gravity.LEFT, 52, 0, 0, 0));\n"
     "        translateComposeButton.setContentDescription(\"Translate typed text\");\n"
     "        ScaleStateListAnimator.apply(translateComposeButton);\n"
     "        translateComposeButton.setOnClickListener(v -> {\n"
@@ -57,6 +58,8 @@ CEV_BUTTON = (
     "            TranslateAlert2.alternativeTranslate(src, null, toLng, cb);\n"
     "        });\n"
 )
+CEV_MARGIN_OLD = "Gravity.BOTTOM, 52, 0, isChat ? 50 : 2, 1.5f"
+CEV_MARGIN_NEW = "Gravity.BOTTOM, 96, 0, isChat ? 50 : 2, 1.5f"
 
 # ---- 2) compose-target field in the settings dialog --------------------------
 # Anchor on ll.addView(modelEdit) only (NOT the model default string, which
@@ -142,9 +145,11 @@ def main():
     cev = os.path.join(root, CEV_REL)
     lsa = os.path.join(root, LSA_REL)
 
-    print("1) Translate button in the message input bar")
+    print("1) Translate button in the message input bar (left side)")
     patch(cev, CEV_ANCHOR, CEV_ANCHOR + CEV_BUTTON,
           "translateComposeButton", "compose button")
+    patch(cev, CEV_MARGIN_OLD, CEV_MARGIN_NEW,
+          "Gravity.BOTTOM, 96, 0, isChat", "compose button: text margin")
 
     print("\n2) Compose-target field in the settings dialog")
     if not os.path.isfile(lsa) or "showAiTranslateSettings" not in read(lsa):

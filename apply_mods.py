@@ -617,16 +617,16 @@ def main():
                      "bidi: Google output")
 
     if cfg.get("compose_translate", True):
-        print("4.7) Translate button for the message input bar")
+        print("4.7) Translate button for the message input bar (left, no overlap)")
         cev = "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
-        cev_anchor = "        textFieldContainer.addView(aiButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.TOP | Gravity.RIGHT, 0, 1, 0, 0));\n"
+        cev_anchor = "        setEmojiButtonImage(false, false);\n"
         cev_button = (
-            '        final android.widget.ImageView translateComposeButton = new android.widget.ImageView(context); // [mod] compose translate\n'
+            '        final android.widget.ImageView translateComposeButton = new android.widget.ImageView(context); // [mod] compose translate (left)\n'
             '        translateComposeButton.setImageResource(R.drawable.msg_translate);\n'
             '        translateComposeButton.setScaleType(android.widget.ImageView.ScaleType.CENTER);\n'
             '        translateComposeButton.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_glass_defaultIcon), PorterDuff.Mode.MULTIPLY));\n'
             '        translateComposeButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_CIRCLE_20DP, dp(16)));\n'
-            '        textFieldContainer.addView(translateComposeButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.TOP | Gravity.RIGHT, 0, 1, DEFAULT_HEIGHT, 0));\n'
+            '        messageEditTextContainer.addView(translateComposeButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.BOTTOM | Gravity.LEFT, 52, 0, 0, 0));\n'
             '        translateComposeButton.setContentDescription("Translate typed text");\n'
             '        ScaleStateListAnimator.apply(translateComposeButton);\n'
             '        translateComposeButton.setOnClickListener(v -> {\n'
@@ -648,6 +648,59 @@ def main():
             replace_once(cev, cev_anchor, cev_anchor + cev_button, "compose: input-bar button")
         else:
             print("  - [compose: input-bar button] already present, skipped.")
+        replace_once(cev,
+                     "Gravity.BOTTOM, 52, 0, isChat ? 50 : 2, 1.5f",
+                     "Gravity.BOTTOM, 96, 0, isChat ? 50 : 2, 1.5f",
+                     "compose: text field left margin")
+
+    if cfg.get("sequential_translate", True):
+        print("4.8) Whole-chat translation: one bubble at a time (no batch fail)")
+        tc = "TMessagesProj/src/main/java/org/telegram/messenger/TranslateController.java"
+        tc_old = (
+            "                    for (int i = 0; i < pendingTranslation1.messageIds.size(); ++i) {\n"
+            "                        final int id = pendingTranslation1.messageIds.get(i);\n"
+            "                        final Utilities.Callback4<Boolean, Integer, TLRPC.TL_textWithEntities, String> _callback = pendingTranslation1.callbacks.get(i);\n"
+            "                        final String _text = pendingTranslation1.messageTexts.get(i).text;\n"
+            "                        TranslateAlert2.alternativeTranslate(_text, null, toLanguage, (result, rateLimit) -> {\n"
+            "                            if (result != null) {\n"
+            "                                final TLRPC.TL_textWithEntities resultWithEntities = new TLRPC.TL_textWithEntities();\n"
+            "                                resultWithEntities.text = result;\n"
+            "                                _callback.run(isTranscription, id, resultWithEntities, toLanguage);\n"
+            "                            } else {\n"
+            "                                toggleTranslatingDialog(dialogId, false);\n"
+            "                                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.showBulletin, Bulletin.TYPE_ERROR, getString(rateLimit ? R.string.TranslationFailedAlert1 : R.string.TranslationFailedAlert2));\n"
+            "                            }\n"
+            "                        });\n"
+            "                    }\n"
+        )
+        tc_new = (
+            "                    // [mod] translate bubbles one-by-one; a slow/rate-limited failure is\n"
+            "                    // skipped silently and does NOT turn off the dialog translation.\n"
+            "                    final int[] _seqIndex = new int[]{0};\n"
+            "                    final Runnable[] _seqNext = new Runnable[1];\n"
+            "                    _seqNext[0] = () -> {\n"
+            "                        int i = _seqIndex[0]++;\n"
+            "                        if (i >= pendingTranslation1.messageIds.size()) {\n"
+            "                            return;\n"
+            "                        }\n"
+            "                        final int id = pendingTranslation1.messageIds.get(i);\n"
+            "                        final Utilities.Callback4<Boolean, Integer, TLRPC.TL_textWithEntities, String> _callback = pendingTranslation1.callbacks.get(i);\n"
+            "                        final String _text = pendingTranslation1.messageTexts.get(i).text;\n"
+            "                        TranslateAlert2.alternativeTranslate(_text, null, toLanguage, (result, rateLimit) -> {\n"
+            "                            if (result != null) {\n"
+            "                                final TLRPC.TL_textWithEntities resultWithEntities = new TLRPC.TL_textWithEntities();\n"
+            "                                resultWithEntities.text = result;\n"
+            "                                _callback.run(isTranscription, id, resultWithEntities, toLanguage);\n"
+            "                            }\n"
+            "                            AndroidUtilities.runOnUIThread(_seqNext[0]);\n"
+            "                        });\n"
+            "                    };\n"
+            "                    _seqNext[0].run();\n"
+        )
+        if not file_contains(tc, "_seqNext"):
+            replace_once(tc, tc_old, tc_new, "sequential whole-chat translate")
+        else:
+            print("  - [sequential whole-chat translate] already present, skipped.")
 
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)

@@ -345,6 +345,22 @@ public static String getAccountLabel(int account, String fallbackName) {
   نیاز به اجرای `ai_translate.py` از قبل (برای دیالوگ). CEV هم‌پکیجِ TranslateAlert2 است (بدونِ import).
 - **سرعت:** کندیِ ترجمه‌ی AI عمدتاً از خودِ مدلِ رایگان است (throughput پایین)؛ راهِ عملی =
   انتخابِ مدلِ سریع‌تر در فیلدِ Model (مثل `google/gemini-2.0-flash-exp:free`). کدِ ما فقط یک POST است.
+- **جای دکمه (رفعِ تداخل):** ابتدا دکمه بالا-راستِ `textFieldContainer` بود که با `attachButton`
+  (پایین-راست) در حالتِ تک‌خطی روی هم می‌افتاد. منتقل شد به **پایین-چپ، کنارِ `emojiButton`**
+  (`messageEditTextContainer`, `Gravity.BOTTOM|LEFT, margin 52`) و حاشیه‌ی چپِ `messageEditText`
+  از 52 به 96 رفت. سمتِ چپ دکمه‌ی پویا ندارد، پس هرگز با attach/bot/gift تداخل نمی‌کند.
+
+### ترجمه‌ی ترتیبیِ کلِ چت + کش — انجام شد
+- باگ: حلقه‌ی `pushToTranslate` همه‌ی حباب‌ها را **موازی** به مدلِ کند می‌فرستاد و **یک** شکست →
+  `toggleTranslatingDialog(dialogId,false)` کلِ چت را خاموش + بولتنِ «ترجمه انجام نشد» تکراری.
+- فیکس (`TranslateController`, شاخه‌ی `"alternative"`): حلقه به **زنجیره‌ی ترتیبی** تبدیل شد
+  (`_seqNext`/`_seqIndex`): هر حباب که آماده شد اعمال و **در DB ذخیره** می‌شود، بعد سراغِ بعدی؛
+  شکستِ یک حباب **بی‌صدا رد** می‌شود و چت را خاموش نمی‌کند.
+- **کش:** ترجمه‌ها همین حالا با `updateMessageCustomParams` در DB ذخیره و گاردِ
+  `translatedText/translatedToLanguage` قبل از ترجمه‌ی مجدد چک می‌شود → توکن دوباره مصرف نمی‌شود
+  و فوری نمایش داده می‌شود (پایدار، بیش از ۷ روز). علتِ مصرفِ دوباره‌ی قبلی، شکست‌شدنِ ترجمه‌ها بود.
+- اسکریپت مستقل: `translate_fixes.py/.bat` (بکاپ `.bak15`؛ CEV جابه‌جاییِ دکمه + TC ترتیبی).
+  apply_mods: بخشِ ۴.۷ (دکمه‌ی چپ) + ۴.۸ (ترتیبی، کلید `sequential_translate`).
 
 ### باگ `sl=und` (ترجمه اغلب انجام نمی‌شد — رفع شد)
 - علت: وقتی تشخیصِ زبانِ مبدأ قطعی نیست (ML Kit روی گوشیِ کاربر بلاک است) زبان `und` می‌شود
