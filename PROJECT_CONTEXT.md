@@ -334,7 +334,17 @@ public static String getAccountLabel(int account, String fallbackName) {
   baked-key را خودکار **مهاجرت** می‌دهد (restore از `.bak12` بعد re-inject). apply_mods بخش ۴.۵.
 - پیش‌فرضِ مدل: `meta-llama/llama-3.3-70b-instruct:free` (OpenRouter). هشدار: ترجمه‌ی **کلِ چت**
   هر پیام = یک درخواست؛ مدلِ رایگان سقفِ نرخ دارد (تک‌پیام مشکلی ندارد).
-- **باقی‌مانده:** دکمه‌ی ترجمه‌ی کادرِ تایپ (compose) با همین موتور — مرحله‌ی بعد.
+### دکمه‌ی ترجمه‌ی کادرِ تایپ (compose) — انجام شد
+- در `ChatActivityEnterView` یک `ImageView` (آیکنِ `msg_translate`) عینِ الگویِ `aiButton` اضافه شد
+  (بالا-راستِ `textFieldContainer`، با margin راستِ `DEFAULT_HEIGHT` تا کنارِ aiButton بنشیند).
+  لمس → متنِ فعلیِ `messageEditText` را با `TranslateAlert2.alternativeTranslate(src, null, toLng, cb)`
+  ترجمه و جایگزین می‌کند (AI اگر روشن، وگرنه گوگل؛ fixBidi هم اعمال می‌شود).
+- زبانِ مقصدِ تایپ از prefِ `compose_translate_to` (پیش‌فرض `en`) خوانده می‌شود و در همان دیالوگِ
+  «YasTel AI Translate» یک فیلد برای تنظیمش اضافه شد.
+- اسکریپت مستقل: `compose_translate.py/.bat` (بکاپ `.bak14`)؛ apply_mods بخش ۴.۷ + فیلدِ دیالوگ در ۴.۵.
+  نیاز به اجرای `ai_translate.py` از قبل (برای دیالوگ). CEV هم‌پکیجِ TranslateAlert2 است (بدونِ import).
+- **سرعت:** کندیِ ترجمه‌ی AI عمدتاً از خودِ مدلِ رایگان است (throughput پایین)؛ راهِ عملی =
+  انتخابِ مدلِ سریع‌تر در فیلدِ Model (مثل `google/gemini-2.0-flash-exp:free`). کدِ ما فقط یک POST است.
 
 ### باگ `sl=und` (ترجمه اغلب انجام نمی‌شد — رفع شد)
 - علت: وقتی تشخیصِ زبانِ مبدأ قطعی نیست (ML Kit روی گوشیِ کاربر بلاک است) زبان `und` می‌شود

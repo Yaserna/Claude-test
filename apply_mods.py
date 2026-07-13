@@ -495,6 +495,11 @@ def main():
             '        modelEdit.setSingleLine(true);\n'
             '        modelEdit.setText(prefs.getString("ai_translate_model", "' + default_model + '"));\n'
             '        ll.addView(modelEdit);\n'
+            '        final EditText composeEdit = new EditText(context);\n'
+            '        composeEdit.setHint("Compose translate target (e.g. en)");\n'
+            '        composeEdit.setSingleLine(true);\n'
+            '        composeEdit.setText(prefs.getString("compose_translate_to", "en"));\n'
+            '        ll.addView(composeEdit);\n'
             '        AlertDialog.Builder builder = new AlertDialog.Builder(context);\n'
             '        builder.setTitle("YasTel AI Translate");\n'
             '        builder.setView(ll);\n'
@@ -503,6 +508,7 @@ def main():
             '                .putBoolean("ai_translate_enabled", enableBox.isChecked())\n'
             '                .putString("ai_translate_key", keyEdit.getText().toString().trim())\n'
             '                .putString("ai_translate_model", modelEdit.getText().toString().trim())\n'
+            '                .putString("compose_translate_to", composeEdit.getText().toString().trim())\n'
             '                .apply();\n'
             '        });\n'
             '        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);\n'
@@ -609,6 +615,39 @@ def main():
                      "                    result = fixBidi(result, toLng);\n"
                      "                    final String finalResult = result;",
                      "bidi: Google output")
+
+    if cfg.get("compose_translate", True):
+        print("4.7) Translate button for the message input bar")
+        cev = "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatActivityEnterView.java"
+        cev_anchor = "        textFieldContainer.addView(aiButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.TOP | Gravity.RIGHT, 0, 1, 0, 0));\n"
+        cev_button = (
+            '        final android.widget.ImageView translateComposeButton = new android.widget.ImageView(context); // [mod] compose translate\n'
+            '        translateComposeButton.setImageResource(R.drawable.msg_translate);\n'
+            '        translateComposeButton.setScaleType(android.widget.ImageView.ScaleType.CENTER);\n'
+            '        translateComposeButton.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_glass_defaultIcon), PorterDuff.Mode.MULTIPLY));\n'
+            '        translateComposeButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_CIRCLE_20DP, dp(16)));\n'
+            '        textFieldContainer.addView(translateComposeButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.TOP | Gravity.RIGHT, 0, 1, DEFAULT_HEIGHT, 0));\n'
+            '        translateComposeButton.setContentDescription("Translate typed text");\n'
+            '        ScaleStateListAnimator.apply(translateComposeButton);\n'
+            '        translateComposeButton.setOnClickListener(v -> {\n'
+            '            if (messageEditText == null) return;\n'
+            '            CharSequence cs = messageEditText.getText();\n'
+            '            if (cs == null || cs.length() == 0) return;\n'
+            '            String toLng = MessagesController.getGlobalMainSettings().getString("compose_translate_to", "en");\n'
+            '            final String src = cs.toString();\n'
+            '            org.telegram.messenger.Utilities.Callback2<String, Boolean> cb = (res, rl) -> {\n'
+            '                if (res != null && messageEditText != null) {\n'
+            '                    messageEditText.setText(res);\n'
+            '                    try { messageEditText.setSelection(messageEditText.length()); } catch (Exception ignore) {}\n'
+            '                }\n'
+            '            };\n'
+            '            TranslateAlert2.alternativeTranslate(src, null, toLng, cb);\n'
+            '        });\n'
+        )
+        if not file_contains(cev, "translateComposeButton"):
+            replace_once(cev, cev_anchor, cev_anchor + cev_button, "compose: input-bar button")
+        else:
+            print("  - [compose: input-bar button] already present, skipped.")
 
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)
