@@ -375,7 +375,7 @@ def main():
         print("4.5) AI translation engine + in-app settings (falls back to Google)")
         ta2 = "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateAlert2.java"
         lsa = "TMessagesProj/src/main/java/org/telegram/ui/LanguageSelectActivity.java"
-        default_model = "meta-llama/llama-3.3-70b-instruct:free"
+        default_model = "openrouter/free"
         # AI method reads key/model from the app settings (SharedPreferences),
         # set in-app at Settings > Language > translate icon. No key in code.
         ai_block = (

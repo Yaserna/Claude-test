@@ -35,7 +35,7 @@ applied = 0
 skipped = 0
 warnings = []
 
-DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+DEFAULT_MODEL = "openrouter/free"
 
 # ---- TranslateAlert2: AI method (reads key/model from app settings) ----------
 AI_METHOD = (
