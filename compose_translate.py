@@ -59,10 +59,9 @@ CEV_BUTTON = (
 )
 
 # ---- 2) compose-target field in the settings dialog --------------------------
-LSA_FIELD_ANCHOR = (
-    '        modelEdit.setText(prefs.getString("ai_translate_model", "openrouter/free"));\n'
-    "        ll.addView(modelEdit);\n"
-)
+# Anchor on ll.addView(modelEdit) only (NOT the model default string, which
+# varies with when ai_translate was run), so the field is always inserted.
+LSA_FIELD_ANCHOR = "        ll.addView(modelEdit);\n"
 LSA_FIELD_NEW = LSA_FIELD_ANCHOR + (
     "        final EditText composeEdit = new EditText(context);\n"
     "        composeEdit.setHint(\"Compose translate target (e.g. en)\");\n"
