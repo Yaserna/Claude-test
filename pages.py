@@ -61,6 +61,32 @@ def read_seed(nodes):
     return " ".join(out)
 
 
+def name_spinner_present(nodes):
+    """True if the little loading circle is showing inside the name field
+    (right side, vertically centered). Confirmed from real dumps: a small
+    View/Image whose center sits in the right edge of the EditText while the
+    name is being checked. Used so the 'checking' state is not mistaken for a
+    stuck/blank page."""
+    edit = None
+    for n in nodes:
+        if n.cls.endswith("EditText") and n.bounds:
+            edit = n.bounds
+            break
+    if not edit:
+        return False
+    ex1, ey1, ex2, ey2 = edit
+    for n in nodes:
+        if not n.bounds:
+            continue
+        if n.cls.endswith("View") or n.cls.endswith("Image"):
+            x1, y1, x2, y2 = n.bounds
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+            w = x2 - x1
+            if (ex2 - 140) <= cx <= (ex2 + 40) and ey1 <= cy <= ey2 and 20 <= w <= 150:
+                return True
+    return False
+
+
 def read_wallet_name(nodes):
     """Wallet name = first non-empty text before the 'Copy' button."""
     for i, n in enumerate(nodes):

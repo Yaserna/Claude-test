@@ -231,7 +231,10 @@ class Bot:
 
     def handle_name(self, nodes):
         gap = self.tuning["name_poll_gap"]
-        no_text_timeout = self.waits.get("name_no_text", 10)
+        # while the name is being checked, the loading circle spins and no
+        # status text is shown yet. In that state give a long window (80s)
+        # before restarting instead of the short previous timeout.
+        loading_timeout = self.waits.get("name_loading_timeout", 80)
         stuck_timeout = self.waits.get("name_stuck_timeout", 120)
 
         # outer loop: try names one by one until one is available
@@ -293,11 +296,17 @@ class Bot:
                         self.restart_app("NAME unexpected message")
                         return
                 else:
-                    # no text under the field -> no-text timer
-                    if time.time() - last_text > no_text_timeout:
-                        self.log.warning("NAME: no status text for %ss -> restart",
-                                         no_text_timeout)
-                        self.restart_app("NAME stuck (no status text)")
+                    # No status text yet -> the name is still being checked
+                    # (loading circle spinning). Do NOT use the old short
+                    # timeout: allow up to loading_timeout (80s), and only
+                    # restart if nothing changed for that whole window.
+                    spinning = pages.name_spinner_present(n2)
+                    waited = time.time() - last_text
+                    if waited > loading_timeout:
+                        self.log.warning("NAME: no status text for %ss "
+                                         "(spinner=%s) -> restart",
+                                         loading_timeout, spinning)
+                        self.restart_app("NAME stuck (checking too long)")
                         return
 
     def _find_continue(self, nodes):
