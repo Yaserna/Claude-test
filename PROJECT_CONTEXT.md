@@ -345,6 +345,11 @@ public static String getAccountLabel(int account, String fallbackName) {
   نیاز به اجرای `ai_translate.py` از قبل (برای دیالوگ). CEV هم‌پکیجِ TranslateAlert2 است (بدونِ import).
 - **سرعت:** کندیِ ترجمه‌ی AI عمدتاً از خودِ مدلِ رایگان است (throughput پایین)؛ راهِ عملی =
   انتخابِ مدلِ سریع‌تر در فیلدِ Model (مثل `google/gemini-2.0-flash-exp:free`). کدِ ما فقط یک POST است.
+- **فیلدِ Server URL (چند-سرویسی):** aiTranslate از prefِ `ai_translate_url` می‌خواند. فیلدش با
+  `ai_server_url.py/.bat` (بکاپ `.bak17`) به دیالوگ اضافه شد (+ ai_translate/apply_mods). با آن هر
+  endpointِ سازگار با OpenAI (OpenRouter/Groq/OpenAI/LiteLLM) بدونِ بیلد وصل می‌شود.
+- **باگِ 429:** لاگ نشان داد OpenRouter free = ۵۰ درخواست/روز؛ بعد از اتمام همه 429. راه‌حل: ۱۰$ اعتبار
+  (۱۰۰۰/روز) یا Groq. کدِ ما سالم بود. `ai_debug.py/.bat` (بکاپ `.bak16`) خطای دقیق را Toast/لاگ می‌کند.
 - **جای دکمه (رفعِ تداخل):** ابتدا دکمه بالا-راستِ `textFieldContainer` بود که با `attachButton`
   (پایین-راست) در حالتِ تک‌خطی روی هم می‌افتاد. منتقل شد به **پایین-چپ، کنارِ `emojiButton`**
   (`messageEditTextContainer`, `Gravity.BOTTOM|LEFT, margin 52`) و حاشیه‌ی چپِ `messageEditText`
