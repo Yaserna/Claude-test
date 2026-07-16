@@ -428,6 +428,21 @@ public static String getAccountLabel(int account, String fallbackName) {
 - `patch_multi/replace_all`: برای متن‌های عمداً تکراری (مثلِ ۳ سایتِ closeMenu).
 - hotfixِ نسخه‌های قبلیِ خودِ اسکریپت‌ها همیشه **قبل از** insertِ متنِ کامل اجرا شود.
 
+## ۹.۵) برگشت به بیلدِ قبلی از داخلِ اپ (`inapp_rollback.py`، bak18)
+هدف: اگر آپدیتِ بعدیِ سورسِ تلگرام modها را بشکند، کاربر بتواند از داخلِ اپ به بیلدِ قبلی برگردد
+بدونِ از دست دادنِ دیتا (همه‌ی بیلدهای YasTel یک `versionCode` و یک امضا دارند → نصبِ روی‌هم مجاز).
+- **`ApplicationLoader.java`**: متدِ `saveYasTelBuild()` (ترد پس‌زمینه) بعد از `applicationInited = true;`
+  صدا زده می‌شود؛ APK درحالِ‌اجرا (`getApplicationInfo().sourceDir`) را در
+  `<externalFiles>/yastel_builds/current.apk` کپی می‌کند و وقتی fingerprint (`length()+"_"+lastModified()`)
+  عوض شد، `current.apk` قبلی را به `previous.apk` می‌چرخاند. نسخه‌ها در SharedPreferences فایلِ
+  `yastelbuilds` ثبت می‌شوند.
+- **`LanguageSelectActivity.java`**: آیتمِ دومِ نوارِ بالا (id=1002، `R.drawable.ic_ab_other`)،
+  متدِ `yastelRevertToPrevious()` که با AlertDialog تأیید می‌گیرد و `previous.apk` را از طریقِ
+  FileProvider (`${applicationId}.provider`) + `ACTION_VIEW` + mimeِ package-archive نصب می‌کند.
+  از REQUEST_INSTALL_PACKAGES و FileProviderِ موجودِ تلگرام استفاده می‌کند (مانیفست دست‌نخورده).
+- پیش‌نیاز: اول `ai_translate.py` (منوی تنظیماتِ Language). بکاپ `.bak18`.
+- در apply_mods بخشِ **4.9** و کلیدِ `inapp_rollback` در build_config. «بیلدِ قبلی» بعد از **دومین** بیلد ظاهر می‌شود.
+
 ---
 
 ## ۱۰) وضعیت فعلی

@@ -708,6 +708,141 @@ def main():
         else:
             print("  - [sequential whole-chat translate] already present, skipped.")
 
+    if cfg.get("inapp_rollback", True):
+        print("4.9) In-app revert to the previous build (keeps previous APK)")
+        al = "TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java"
+        lsa = "TMessagesProj/src/main/java/org/telegram/ui/LanguageSelectActivity.java"
+        al_method = (
+            "    // [mod] YasTel: keep a copy of the previous build's APK for rollback.\n"
+            "    public static void saveYasTelBuild() {\n"
+            "        new Thread() {\n"
+            "            @Override\n"
+            "            public void run() {\n"
+            "                try {\n"
+            "                    android.content.Context ctx = applicationContext;\n"
+            "                    if (ctx == null) {\n"
+            "                        return;\n"
+            "                    }\n"
+            "                    java.io.File base = ctx.getExternalFilesDir(null);\n"
+            "                    if (base == null) {\n"
+            "                        return;\n"
+            "                    }\n"
+            "                    java.io.File dir = new java.io.File(base, \"yastel_builds\");\n"
+            "                    dir.mkdirs();\n"
+            "                    java.io.File curApk = new java.io.File(dir, \"current.apk\");\n"
+            "                    java.io.File prevApk = new java.io.File(dir, \"previous.apk\");\n"
+            "                    String srcPath = ctx.getApplicationInfo().sourceDir;\n"
+            "                    if (srcPath == null) {\n"
+            "                        return;\n"
+            "                    }\n"
+            "                    java.io.File myApk = new java.io.File(srcPath);\n"
+            "                    if (!myApk.exists()) {\n"
+            "                        return;\n"
+            "                    }\n"
+            "                    android.content.SharedPreferences p = ctx.getSharedPreferences(\"yastelbuilds\", android.content.Context.MODE_PRIVATE);\n"
+            "                    String fp = myApk.length() + \"_\" + myApk.lastModified();\n"
+            "                    String savedFp = p.getString(\"current_fp\", \"\");\n"
+            "                    if (curApk.exists() && fp.equals(savedFp)) {\n"
+            "                        return;\n"
+            "                    }\n"
+            "                    if (curApk.exists() && !fp.equals(savedFp)) {\n"
+            "                        if (prevApk.exists()) {\n"
+            "                            prevApk.delete();\n"
+            "                        }\n"
+            "                        if (curApk.renameTo(prevApk)) {\n"
+            "                            p.edit().putString(\"previous_version\", p.getString(\"current_version\", \"\")).apply();\n"
+            "                        }\n"
+            "                    }\n"
+            "                    java.io.FileInputStream in = new java.io.FileInputStream(myApk);\n"
+            "                    java.io.FileOutputStream out = new java.io.FileOutputStream(curApk);\n"
+            "                    byte[] buf = new byte[65536];\n"
+            "                    int r;\n"
+            "                    while ((r = in.read(buf)) > 0) {\n"
+            "                        out.write(buf, 0, r);\n"
+            "                    }\n"
+            "                    in.close();\n"
+            "                    out.close();\n"
+            "                    p.edit().putString(\"current_fp\", fp).putString(\"current_version\", BuildVars.BUILD_VERSION_STRING).apply();\n"
+            "                } catch (Throwable e) {\n"
+            "                    // best-effort; rollback copy is optional\n"
+            "                }\n"
+            "            }\n"
+            "        }.start();\n"
+            "    }\n"
+            "\n"
+        )
+        if not file_contains(al, "saveYasTelBuild"):
+            replace_once(al,
+                         "    public static void postInitApplication() {\n",
+                         al_method + "    public static void postInitApplication() {\n",
+                         "rollback: save-build method")
+            replace_once(al,
+                         "        applicationInited = true;\n",
+                         "        applicationInited = true;\n"
+                         "        saveYasTelBuild(); // [mod] keep previous build apk\n",
+                         "rollback: startup call")
+        else:
+            print("  - [rollback: save-build] already present, skipped.")
+        lsa_revert = (
+            "    private void yastelRevertToPrevious() {\n"
+            "        android.content.Context context = getParentActivity();\n"
+            "        if (context == null) {\n"
+            "            return;\n"
+            "        }\n"
+            "        java.io.File base = context.getExternalFilesDir(null);\n"
+            "        java.io.File prevApk = base == null ? null : new java.io.File(new java.io.File(base, \"yastel_builds\"), \"previous.apk\");\n"
+            "        android.content.SharedPreferences p = context.getSharedPreferences(\"yastelbuilds\", android.content.Context.MODE_PRIVATE);\n"
+            "        String prevVer = p.getString(\"previous_version\", \"\");\n"
+            "        AlertDialog.Builder builder = new AlertDialog.Builder(context);\n"
+            "        builder.setTitle(\"YasTel builds\");\n"
+            "        if (prevApk == null || !prevApk.exists()) {\n"
+            "            builder.setMessage(\"No previous build is saved yet. After you build and install a newer version, the current one is kept here so you can roll back to it.\");\n"
+            "            builder.setPositiveButton(LocaleController.getString(R.string.OK), null);\n"
+            "        } else {\n"
+            "            builder.setMessage(\"Reinstall the previous build\" + (prevVer.length() > 0 ? \" (v\" + prevVer + \")\" : \"\") + \"?\\nYour chats and data are kept. Android will ask you to confirm the install.\");\n"
+            "            final java.io.File apk = prevApk;\n"
+            "            builder.setPositiveButton(\"Reinstall\", (dialog, which) -> {\n"
+            "                try {\n"
+            "                    android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);\n"
+            "                    intent.setFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION | android.content.Intent.FLAG_ACTIVITY_NEW_TASK);\n"
+            "                    android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(context, org.telegram.messenger.ApplicationLoader.getApplicationId() + \".provider\", apk);\n"
+            "                    intent.setDataAndType(uri, \"application/vnd.android.package-archive\");\n"
+            "                    context.startActivity(intent);\n"
+            "                } catch (Exception e) {\n"
+            "                    org.telegram.messenger.FileLog.e(e);\n"
+            "                }\n"
+            "            });\n"
+            "            builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);\n"
+            "        }\n"
+            "        showDialog(builder.create());\n"
+            "    }\n"
+            "\n"
+        )
+        if not file_contains(lsa, "showAiTranslateSettings"):
+            print("  ! WARNING: [rollback] AI-translate menu missing; enable ai_translate first.")
+        elif not file_contains(lsa, "yastelRevertToPrevious"):
+            replace_once(lsa,
+                         "        menu.addItem(1001, R.drawable.msg_translate); // [mod] YasTel AI translate settings\n",
+                         "        menu.addItem(1001, R.drawable.msg_translate); // [mod] YasTel AI translate settings\n"
+                         "        menu.addItem(1002, R.drawable.ic_ab_other); // [mod] YasTel builds / revert\n",
+                         "rollback: menu item")
+            replace_once(lsa,
+                         "                } else if (id == 1001) { // [mod] YasTel AI translate settings\n"
+                         "                    showAiTranslateSettings();\n"
+                         "                }",
+                         "                } else if (id == 1001) { // [mod] YasTel AI translate settings\n"
+                         "                    showAiTranslateSettings();\n"
+                         "                } else if (id == 1002) { // [mod] YasTel builds / revert\n"
+                         "                    yastelRevertToPrevious();\n"
+                         "                }",
+                         "rollback: click handler")
+            replace_once(lsa,
+                         "    @Override\n    public View createView(Context context) {",
+                         lsa_revert + "    @Override\n    public View createView(Context context) {",
+                         "rollback: revert method")
+        else:
+            print("  - [rollback: revert button] already present, skipped.")
+
     # ------------------------------------------------------------------
     # 5) Number tag for accounts (#1 .. #100)
     #    Number = account slot number + 1. Since slots fill in login order,

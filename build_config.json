@@ -20,5 +20,6 @@
   "ai_translate": true,
   "fix_bidi": true,
   "compose_translate": true,
-  "sequential_translate": true
+  "sequential_translate": true,
+  "inapp_rollback": true
 }
