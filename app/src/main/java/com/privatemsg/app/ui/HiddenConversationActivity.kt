@@ -196,8 +196,25 @@ class HiddenConversationActivity : BaseActivity() {
     }
 
     private fun loadMessages() {
-        adapter.submit(hiddenDb.getMessages(address))
+        val msgs = hiddenDb.getMessages(address)
+        adapter.submit(msgs)
         binding.recycler.scrollToPosition(adapter.itemCount - 1)
+        autoSelectSim(msgs)
+    }
+
+    /** Reply SIM follows the SIM of the most recent received message (manual change still works). */
+    private var lastIncomingId = -1L
+    private fun autoSelectSim(msgs: List<Message>) {
+        if (sims.size < 2) return
+        val lastIn = msgs.lastOrNull { it.type == 1 && it.subId >= 0 } ?: return
+        if (lastIn.id != lastIncomingId) {
+            lastIncomingId = lastIn.id
+            val idx = sims.indexOfFirst { it.subId == lastIn.subId }
+            if (idx >= 0) {
+                simIndex = idx
+                binding.simBadge.text = sims[simIndex].slot.toString()
+            }
+        }
     }
 
     /** Display name = the app-only alias if set, otherwise the contact/number. */
@@ -240,7 +257,7 @@ class HiddenConversationActivity : BaseActivity() {
         // Store the sent message privately (type 2 = sent); never in the system store.
         val rowId = hiddenDb.insert(address, body, System.currentTimeMillis(), 2, subId)
         val deliveredPi =
-            if (SecureStore(this).deliveryReportEnabled) hiddenDeliveryIntent(rowId) else null
+            if (SecureStore(this).deliveryReportForSub(subId)) hiddenDeliveryIntent(rowId) else null
         sendViaSms(address, body, null, deliveredPi)
 
         binding.input.setText("")

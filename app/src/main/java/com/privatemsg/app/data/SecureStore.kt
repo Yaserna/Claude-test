@@ -151,6 +151,13 @@ class SecureStore(context: Context) {
         get() = prefs.getBoolean(KEY_DELIVERY, true)
         set(v) = prefs.edit().putBoolean(KEY_DELIVERY, v).apply()
 
+    /** Delivery report on/off per SIM (falls back to the old global value). */
+    fun deliveryReportForSub(subId: Int): Boolean =
+        prefs.getBoolean(KEY_DELIVERY + "_" + subId, deliveryReportEnabled)
+
+    fun setDeliveryReportForSub(subId: Int, enabled: Boolean) =
+        prefs.edit().putBoolean(KEY_DELIVERY + "_" + subId, enabled).apply()
+
     // ---- Display size ----
 
     /** Extra scaling applied to text only (sp). 1.0 = normal. */

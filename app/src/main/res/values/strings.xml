@@ -16,6 +16,7 @@
     <string name="settings_title">تنظیمات</string>
     <string name="section_notifications">اعلان‌ها</string>
     <string name="delivery_report">گزارش تحویل</string>
+    <string name="delivery_report_sim">گزارش تحویل — سیم %1$d</string>
     <string name="delivery_report_summary">نمایش وضعیت تحویل برای پیام‌های ارسالی</string>
     <string name="section_display">نمایش</string>
     <string name="text_size">اندازه‌ی متن</string>

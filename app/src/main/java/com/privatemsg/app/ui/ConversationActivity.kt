@@ -507,8 +507,30 @@ class ConversationActivity : BaseActivity() {
 
     private fun loadMessages() {
         if (threadId > 0) {
-            adapter.submit(repo.getMessages(threadId))
+            val msgs = repo.getMessages(threadId)
+            adapter.submit(msgs)
             binding.recycler.scrollToPosition(adapter.itemCount - 1)
+            autoSelectSim(msgs)
+        }
+    }
+
+    /**
+     * The reply SIM automatically follows the SIM of the most recent RECEIVED
+     * message: a new incoming message on SIM 2 selects SIM 2 for the reply, and a
+     * later one on SIM 1 selects SIM 1. The user can still tap the badge to change
+     * it; that choice holds until the next incoming message arrives.
+     */
+    private var lastIncomingId = -1L
+    private fun autoSelectSim(msgs: List<Message>) {
+        if (sims.size < 2) return
+        val lastIn = msgs.lastOrNull { it.type == 1 && it.subId >= 0 } ?: return
+        if (lastIn.id != lastIncomingId) {
+            lastIncomingId = lastIn.id
+            val idx = sims.indexOfFirst { it.subId == lastIn.subId }
+            if (idx >= 0) {
+                simIndex = idx
+                binding.simBadge.text = sims[simIndex].slot.toString()
+            }
         }
     }
 
@@ -523,7 +545,7 @@ class ConversationActivity : BaseActivity() {
         val uri = repo.storeSentMessage(to, body, subId)
         val sentPi = statusPendingIntent(SmsStatusReceiver.ACTION_SENT, uri)
         val deliveredPi =
-            if (SecureStore(this).deliveryReportEnabled)
+            if (SecureStore(this).deliveryReportForSub(subId))
                 statusPendingIntent(SmsStatusReceiver.ACTION_DELIVERED, uri)
             else null
         sendViaSms(to, body, sentPi, deliveredPi)

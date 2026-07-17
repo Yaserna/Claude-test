@@ -33,10 +33,7 @@ class SettingsActivity : BaseActivity() {
             getString(R.string.app_version, com.privatemsg.app.BuildConfig.VERSION_NAME)
 
         val secure = SecureStore(this)
-        binding.deliverySwitch.isChecked = secure.deliveryReportEnabled
-        binding.deliverySwitch.setOnCheckedChangeListener { _, checked ->
-            secure.deliveryReportEnabled = checked
-        }
+        buildDeliveryRows(secure)
 
         binding.textSizeValue.text = scaleLabels[nearestIndex(secure.fontScale)]
         binding.textSizeRow.setOnClickListener {
@@ -95,6 +92,48 @@ class SettingsActivity : BaseActivity() {
                 )
             )
         }
+    }
+
+    /** Builds one delivery-report toggle per SIM (or a single one when there's one SIM). */
+    private fun buildDeliveryRows(secure: SecureStore) {
+        val sims = com.privatemsg.app.data.SimHelper(this).sims()
+        binding.deliveryContainer.removeAllViews()
+        if (sims.size <= 1) {
+            val subId = sims.firstOrNull()?.subId ?: -1
+            addDeliveryRow(getString(R.string.delivery_report), subId, secure)
+        } else {
+            for (s in sims) addDeliveryRow(getString(R.string.delivery_report_sim, s.slot), s.subId, secure)
+        }
+    }
+
+    private fun addDeliveryRow(label: String, subId: Int, secure: SecureStore) {
+        val d = resources.displayMetrics.density
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding((16 * d).toInt(), (10 * d).toInt(), (16 * d).toInt(), (10 * d).toInt())
+        }
+        val tv = android.widget.TextView(this).apply {
+            text = label
+            setTextColor(getColor(R.color.textPrimary))
+            textSize = 16f
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+        }
+        val sw = com.google.android.material.materialswitch.MaterialSwitch(this).apply {
+            isChecked = secure.deliveryReportForSub(subId)
+            setOnCheckedChangeListener { _, c -> secure.setDeliveryReportForSub(subId, c) }
+        }
+        row.addView(tv)
+        row.addView(sw)
+        binding.deliveryContainer.addView(
+            row,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
     }
 
     private val themeLabels by lazy {
