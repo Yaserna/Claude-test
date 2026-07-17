@@ -156,8 +156,12 @@ class MainActivity : BaseActivity() {
 
         // The archive badge (shown only for unread archived chats) opens the archive.
         binding.archiveButton.setOnClickListener {
-            binding.searchInput.setText(secure.archiveKeyword)
-            binding.searchInput.setSelection(binding.searchInput.text?.length ?: 0)
+            startActivity(Intent(this, ArchiveActivity::class.java))
+        }
+        // The "Archive" search entry opens the archive screen.
+        binding.archiveEntry.setOnClickListener {
+            clearSearch()
+            startActivity(Intent(this, ArchiveActivity::class.java))
         }
 
         binding.searchInput.addTextChangedListener { applyFilter(it?.toString().orEmpty()) }
@@ -238,6 +242,7 @@ class MainActivity : BaseActivity() {
         binding.cancelButton.visibility = if (on) View.VISIBLE else View.GONE
         binding.searchBar.visibility = if (on) View.GONE else View.VISIBLE
         if (on) binding.privateEntry.visibility = View.GONE
+        if (on) binding.archiveEntry.visibility = View.GONE
         binding.favoritesButton.visibility = if (on) View.GONE else View.VISIBLE
         binding.selectionBar.visibility = if (on) View.VISIBLE else View.GONE
         binding.fab.visibility = if (on) View.GONE else View.VISIBLE
@@ -322,9 +327,12 @@ class MainActivity : BaseActivity() {
             if (code.isNotEmpty() && secure.hasPin() && secure.checkPin(code)) View.VISIBLE
             else View.GONE
 
-        // Typing the archive keyword opens the archived conversations.
-        if (raw.isNotEmpty() && raw == secure.archiveKeyword) {
-            adapter.submit(archivedConvos)
+        // Typing the archive keyword reveals an "Archive" entry (which opens the
+        // archive screen), rather than listing the archived chats inline.
+        val showArchive = raw.isNotEmpty() && raw == secure.archiveKeyword
+        binding.archiveEntry.visibility = if (showArchive) View.VISIBLE else View.GONE
+        if (showArchive) {
+            adapter.submit(emptyList())
             return
         }
 
