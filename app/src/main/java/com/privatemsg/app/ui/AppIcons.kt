@@ -14,10 +14,10 @@ object AppIcons {
     /** Alias name (matches the manifest) → preview drawable + label. */
     val options: List<Triple<String, Int, Int>> = listOf(
         Triple("IconDefault", R.drawable.ic_launcher, R.string.icon_default),
-        Triple("IconPlane", R.drawable.ic_launcher_plane, R.string.icon_plane),
-        Triple("IconChat", R.drawable.ic_launcher_chat, R.string.icon_chat),
-        Triple("IconBubble", R.drawable.ic_launcher_bubble, R.string.icon_bubble),
-        Triple("IconClassic", R.drawable.ic_launcher_classic, R.string.icon_classic)
+        Triple("IconPlane", R.drawable.ic_launcher_gmsg, R.string.icon_google),
+        Triple("IconChat", R.drawable.ic_launcher_samsung, R.string.icon_samsung),
+        Triple("IconBubble", R.drawable.ic_launcher_huawei, R.string.icon_huawei),
+        Triple("IconClassic", R.drawable.ic_launcher_poco, R.string.icon_poco)
     )
 
     fun apply(context: Context, chosen: String) {

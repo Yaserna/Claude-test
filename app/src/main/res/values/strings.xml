@@ -71,10 +71,10 @@
     <string name="app_icon_summary">آیکون برنامه را تغییر دهید</string>
     <string name="app_icon_changed">آیکون تغییر کرد؛ ممکن است چند لحظه طول بکشد</string>
     <string name="icon_default">پیش‌فرض</string>
-    <string name="icon_plane">آبی</string>
-    <string name="icon_chat">سبز</string>
-    <string name="icon_bubble">نارنجی</string>
-    <string name="icon_classic">کلاسیک</string>
+    <string name="icon_google">گوگل مسیج</string>
+    <string name="icon_samsung">سامسونگ</string>
+    <string name="icon_huawei">هواوی</string>
+    <string name="icon_poco">پوکو</string>
 
     <string name="rename_contact">تغییر نام نمایشی</string>
     <string name="rename_hint">نام دلخواه (فقط داخل برنامه)</string>
