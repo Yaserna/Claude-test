@@ -64,6 +64,14 @@ class SettingsActivity : BaseActivity() {
             }
         }
 
+        // Theme (light / dark / system).
+        binding.themeValue.text = themeLabels[secure.themeMode]
+        binding.themeRow.setOnClickListener { pickTheme(secure) }
+
+        // App icon.
+        binding.appIconPreview.setImageResource(iconPreviewFor(secure.appIcon))
+        binding.appIconRow.setOnClickListener { pickAppIcon(secure) }
+
         // Archive access keyword (editable).
         binding.archiveKeywordValue.text = secure.archiveKeyword
         binding.archiveKeywordRow.setOnClickListener {
@@ -87,6 +95,71 @@ class SettingsActivity : BaseActivity() {
                 )
             )
         }
+    }
+
+    private val themeLabels by lazy {
+        // Indexed by SecureStore.THEME_SYSTEM/LIGHT/DARK (0/1/2).
+        arrayOf(
+            getString(R.string.theme_system),
+            getString(R.string.theme_light),
+            getString(R.string.theme_dark)
+        )
+    }
+
+    private fun pickTheme(secure: SecureStore) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.theme_label)
+            .setSingleChoiceItems(themeLabels, secure.themeMode) { dialog, which ->
+                dialog.dismiss()
+                if (which != secure.themeMode) {
+                    secure.themeMode = which
+                    // Rebuild so the new theme applies immediately across the app.
+                    recreate()
+                }
+            }
+            .show()
+    }
+
+    private fun iconPreviewFor(alias: String): Int =
+        AppIcons.options.firstOrNull { it.first == alias }?.second
+            ?: com.privatemsg.app.R.drawable.ic_launcher
+
+    /** Grid of the available launcher icons; picking one switches the app icon. */
+    private fun pickAppIcon(secure: SecureStore) {
+        val density = resources.displayMetrics.density
+        val cell = (72 * density).toInt()
+        val icon = (52 * density).toInt()
+        val grid = android.widget.GridLayout(this).apply {
+            columnCount = 3
+            val p = (12 * density).toInt()
+            setPadding(p, p, p, p)
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.app_icon_label)
+            .setView(grid)
+            .create()
+        for ((alias, drawable, _) in AppIcons.options) {
+            val iv = android.widget.ImageView(this).apply {
+                setImageResource(drawable)
+                setPadding(4, 4, 4, 4)
+                layoutParams = android.widget.GridLayout.LayoutParams().apply {
+                    width = icon
+                    height = icon
+                    setMargins((cell - icon) / 2, (cell - icon) / 2, (cell - icon) / 2, (cell - icon) / 2)
+                }
+                setOnClickListener {
+                    secure.appIcon = alias
+                    binding.appIconPreview.setImageResource(drawable)
+                    AppIcons.apply(this@SettingsActivity, alias)
+                    android.widget.Toast.makeText(
+                        this@SettingsActivity, R.string.app_icon_changed, android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    dialog.dismiss()
+                }
+            }
+            grid.addView(iv)
+        }
+        dialog.show()
     }
 
     /** Lets the user pick a different word to type in search for opening the archive. */

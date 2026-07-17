@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.PrivateMessages" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.PrivateMessages" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorOnPrimary">#000000</item>
         <item name="colorSecondary">@color/accent</item>
@@ -14,7 +14,7 @@
     </style>
 
     <!-- Floating quick-reply window opened from the notification's Reply button. -->
-    <style name="Theme.QuickReply" parent="Theme.Material3.Dark.Dialog">
+    <style name="Theme.QuickReply" parent="Theme.Material3.DayNight.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowCloseOnTouchOutside">true</item>

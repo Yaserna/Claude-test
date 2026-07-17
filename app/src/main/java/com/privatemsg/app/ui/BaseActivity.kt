@@ -22,11 +22,13 @@ abstract class BaseActivity : AppCompatActivity() {
 
     private var appliedFontScale = 1f
     private var appliedUiScale = 1f
+    private var appliedTheme = 2
 
     override fun attachBaseContext(newBase: Context) {
         val prefs = newBase.getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
         appliedFontScale = prefs.getFloat("font_scale", 1f)
         appliedUiScale = prefs.getFloat("ui_scale", 1f)
+        appliedTheme = prefs.getInt("theme_mode", 2)
 
         val locale = Locale("fa")
         Locale.setDefault(locale)
@@ -36,6 +38,15 @@ abstract class BaseActivity : AppCompatActivity() {
         // User display-size preferences: text-only scale + whole-UI (DPI-like) scale.
         config.fontScale = config.fontScale * appliedFontScale
         config.densityDpi = (config.densityDpi * appliedUiScale).toInt()
+        // Light/dark theme: force the night bit so values-night resources resolve.
+        val night = when (appliedTheme) {
+            1 -> false // light
+            2 -> true  // dark
+            else -> (newBase.resources.configuration.uiMode and
+                Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        }
+        config.uiMode = (config.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+            (if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
         super.attachBaseContext(newBase.createConfigurationContext(config))
     }
 
@@ -48,10 +59,18 @@ abstract class BaseActivity : AppCompatActivity() {
             finish()
             return
         }
-        // If the display size changed elsewhere, rebuild this screen to apply it.
+        // Keep the status-bar icons legible against the current theme background.
+        val night = (resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !night
+            isAppearanceLightNavigationBars = !night
+        }
+        // If the display size or theme changed elsewhere, rebuild this screen to apply it.
         val prefs = getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
         if (prefs.getFloat("font_scale", 1f) != appliedFontScale ||
-            prefs.getFloat("ui_scale", 1f) != appliedUiScale
+            prefs.getFloat("ui_scale", 1f) != appliedUiScale ||
+            prefs.getInt("theme_mode", 2) != appliedTheme
         ) {
             recreate()
         }

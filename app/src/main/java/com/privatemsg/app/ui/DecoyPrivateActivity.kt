@@ -22,7 +22,8 @@ class DecoyPrivateActivity : BaseActivity() {
         setContentView(binding.root)
 
         binding.title.text = getString(R.string.private_folder_title)
-        binding.favoritesRow.visibility = View.GONE
+        binding.favoritesButton.visibility = View.GONE
+        binding.archiveButtonWrap.visibility = View.GONE
 
         val adapter = ConversationAdapter(
             contacts = ContactsHelper(this),

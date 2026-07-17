@@ -68,7 +68,9 @@ class HiddenActivity : BaseActivity() {
                 i.putExtra("address", conv.address)
                 startActivity(i)
             },
-            onLongClick = { conv -> showRowMenu(conv.address) }
+            onLongClick = { conv -> showRowMenu(conv.address) },
+            // Show the app-only alias (if the user renamed this hidden number).
+            nameOverride = { secure.hiddenAliasFor(it.address) }
         )
         binding.recycler.layoutManager = LinearLayoutManager(this)
         binding.recycler.adapter = adapter

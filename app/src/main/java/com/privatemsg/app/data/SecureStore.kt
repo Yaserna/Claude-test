@@ -173,6 +173,28 @@ class SecureStore(context: Context) {
         get() = prefs.getBoolean(KEY_DECOY_SOUND, false)
         set(v) = prefs.edit().putBoolean(KEY_DECOY_SOUND, v).apply()
 
+    /** App theme: 0 = follow system, 1 = light, 2 = dark. Default dark (original look). */
+    var themeMode: Int
+        get() = prefs.getInt(KEY_THEME, THEME_DARK)
+        set(v) = prefs.edit().putInt(KEY_THEME, v).apply()
+
+    /** Which launcher-icon alias is active (default the original icon). */
+    var appIcon: String
+        get() = prefs.getString(KEY_APP_ICON, ICON_DEFAULT) ?: ICON_DEFAULT
+        set(v) = prefs.edit().putString(KEY_APP_ICON, v).apply()
+
+    // ---- Per-hidden-number display alias (shown only inside the app; contacts untouched) ----
+
+    /** Custom display name for a hidden number, or null if none set. */
+    fun hiddenAliasFor(address: String): String? =
+        prefs.getString(KEY_HIDDEN_ALIAS + "_" + normalize(address), null)?.takeIf { it.isNotBlank() }
+
+    fun setHiddenAlias(address: String, name: String) {
+        val key = KEY_HIDDEN_ALIAS + "_" + normalize(address)
+        if (name.isBlank()) prefs.edit().remove(key).apply()
+        else prefs.edit().putString(key, name.trim()).apply()
+    }
+
     // ---- Bubble colors ----
 
     /** Background color of messages I send (default Mi green). */
@@ -235,6 +257,16 @@ class SecureStore(context: Context) {
         private const val KEY_UI_SCALE = "ui_scale"
         private const val KEY_FINGERPRINT = "fingerprint_unlock"
         private const val KEY_DECOY_SOUND = "decoy_sound"
+        private const val KEY_THEME = "theme_mode"
+        private const val KEY_APP_ICON = "app_icon"
+        private const val KEY_HIDDEN_ALIAS = "hidden_alias"
+
+        const val THEME_SYSTEM = 0
+        const val THEME_LIGHT = 1
+        const val THEME_DARK = 2
+
+        /** Launcher-icon alias names (must match the <activity-alias> entries in the manifest). */
+        const val ICON_DEFAULT = "IconDefault"
         private const val KEY_SENT_COLOR = "sent_bubble_color"
         private const val KEY_RECEIVED_COLOR = "received_bubble_color"
 

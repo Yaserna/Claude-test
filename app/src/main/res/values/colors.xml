@@ -1,9 +1,10 @@
 <resources>
-    <color name="bg">#000000</color>
-    <color name="surface">#1C1C1E</color>
-    <color name="pill">#2C2C2E</color>
+    <!-- LIGHT theme values (dark values live in values-night/colors.xml). -->
+    <color name="bg">#FFFFFF</color>
+    <color name="surface">#F2F2F7</color>
+    <color name="pill">#E9E9EB</color>
     <color name="accent">#F7A623</color>
-    <color name="textPrimary">#FFFFFF</color>
-    <color name="textSecondary">#9E9E9E</color>
-    <color name="avatarGray">#3A3A3C</color>
+    <color name="textPrimary">#000000</color>
+    <color name="textSecondary">#6D6D72</color>
+    <color name="avatarGray">#C7C7CC</color>
 </resources>

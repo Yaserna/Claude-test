@@ -53,8 +53,9 @@ class HiddenConversationActivity : BaseActivity() {
         address = intent.getStringExtra("address") ?: ""
         binding.recipientRow.visibility = android.view.View.GONE
         binding.attachButton.visibility = android.view.View.GONE
-        binding.titleName.text = ContactsHelper(this).displayFor(address)
-        binding.titleNumber.text = address
+        updateTitle()
+        // Tap the name to give this hidden number a custom display name (app-only).
+        binding.titleBox.setOnClickListener { showRenameDialog() }
 
         setupSim()
         val slotMap = sims.associate { it.subId to it.slot }
@@ -197,6 +198,37 @@ class HiddenConversationActivity : BaseActivity() {
     private fun loadMessages() {
         adapter.submit(hiddenDb.getMessages(address))
         binding.recycler.scrollToPosition(adapter.itemCount - 1)
+    }
+
+    /** Display name = the app-only alias if set, otherwise the contact/number. */
+    private fun updateTitle() {
+        binding.titleName.text =
+            SecureStore(this).hiddenAliasFor(address) ?: ContactsHelper(this).displayFor(address)
+        binding.titleNumber.text = address
+    }
+
+    /** Rename the hidden contact for display inside the app only (contacts untouched). */
+    private fun showRenameDialog() {
+        if (address.isEmpty()) return
+        val input = android.widget.EditText(this).apply {
+            setText(SecureStore(this@HiddenConversationActivity).hiddenAliasFor(address) ?: "")
+            setSelection(text?.length ?: 0)
+            hint = getString(R.string.rename_hint)
+        }
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0); addView(input)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.rename_contact)
+            .setView(container)
+            .setPositiveButton(R.string.save) { _, _ ->
+                SecureStore(this).setHiddenAlias(address, input.text.toString())
+                updateTitle()
+                Toast.makeText(this, R.string.rename_saved, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun send() {

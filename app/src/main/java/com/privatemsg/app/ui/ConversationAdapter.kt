@@ -14,7 +14,9 @@ class ConversationAdapter(
     private val contacts: ContactsHelper,
     private val onClick: (Conversation) -> Unit,
     private val onLongClick: (Conversation) -> Unit = {},
-    private val onSelectionChanged: () -> Unit = {}
+    private val onSelectionChanged: () -> Unit = {},
+    // Optional: override the displayed name (e.g. a hidden-number app-only alias).
+    private val nameOverride: ((Conversation) -> String?)? = null
 ) : RecyclerView.Adapter<ConversationAdapter.VH>() {
 
     private val items = mutableListOf<Conversation>()
@@ -69,7 +71,7 @@ class ConversationAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val c = items[position]
         val ctx = holder.itemView.context
-        val display = contacts.displayFor(c.address)
+        val display = nameOverride?.invoke(c) ?: contacts.displayFor(c.address)
         holder.binding.name.text = display
         holder.binding.time.text =
             if (c.date > 0) DateUtils.getRelativeTimeSpanString(c.date).toString().toLatinDigits() else ""

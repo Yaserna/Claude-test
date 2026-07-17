@@ -1,0 +1,10 @@
+<resources>
+    <!-- DARK theme values (the app's original look). -->
+    <color name="bg">#000000</color>
+    <color name="surface">#1C1C1E</color>
+    <color name="pill">#2C2C2E</color>
+    <color name="accent">#F7A623</color>
+    <color name="textPrimary">#FFFFFF</color>
+    <color name="textSecondary">#9E9E9E</color>
+    <color name="avatarGray">#3A3A3C</color>
+</resources>

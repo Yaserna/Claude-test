@@ -120,7 +120,7 @@ class MainActivity : BaseActivity() {
             startActivity(Intent(this, PinActivity::class.java))
         }
 
-        binding.favoritesRow.setOnClickListener {
+        binding.favoritesButton.setOnClickListener {
             startActivity(Intent(this, FavoritesActivity::class.java))
         }
         binding.settingsButton.setOnClickListener {
@@ -238,7 +238,7 @@ class MainActivity : BaseActivity() {
         binding.cancelButton.visibility = if (on) View.VISIBLE else View.GONE
         binding.searchBar.visibility = if (on) View.GONE else View.VISIBLE
         if (on) binding.privateEntry.visibility = View.GONE
-        binding.favoritesRow.visibility = if (on) View.GONE else View.VISIBLE
+        binding.favoritesButton.visibility = if (on) View.GONE else View.VISIBLE
         binding.selectionBar.visibility = if (on) View.VISIBLE else View.GONE
         binding.fab.visibility = if (on) View.GONE else View.VISIBLE
         binding.title.text =

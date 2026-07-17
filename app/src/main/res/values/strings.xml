@@ -61,6 +61,25 @@
     <string name="archive_keyword_summary">این کلمه را در نوار جستجو بنویسید تا بایگانی باز شود</string>
     <string name="archive_keyword_empty">کلمه نمی‌تواند خالی باشد</string>
 
+    <string name="section_theme">تم برنامه</string>
+    <string name="theme_label">حالت روشن یا تیره</string>
+    <string name="theme_system">هماهنگ با سیستم</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_dark">تیره</string>
+
+    <string name="app_icon_label">آیکون برنامه</string>
+    <string name="app_icon_summary">آیکون برنامه را تغییر دهید</string>
+    <string name="app_icon_changed">آیکون تغییر کرد؛ ممکن است چند لحظه طول بکشد</string>
+    <string name="icon_default">پیش‌فرض</string>
+    <string name="icon_plane">آبی</string>
+    <string name="icon_chat">سبز</string>
+    <string name="icon_bubble">نارنجی</string>
+    <string name="icon_classic">کلاسیک</string>
+
+    <string name="rename_contact">تغییر نام نمایشی</string>
+    <string name="rename_hint">نام دلخواه (فقط داخل برنامه)</string>
+    <string name="rename_saved">نام نمایشی ذخیره شد</string>
+
     <string name="hidden_title">مخفی</string>
     <string name="add_hidden">افزودن شماره‌ی مخفی</string>
     <string name="add">افزودن</string>
