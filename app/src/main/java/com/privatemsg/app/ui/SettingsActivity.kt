@@ -64,6 +64,12 @@ class SettingsActivity : BaseActivity() {
             }
         }
 
+        // Archive access keyword (editable).
+        binding.archiveKeywordValue.text = secure.archiveKeyword
+        binding.archiveKeywordRow.setOnClickListener {
+            editArchiveKeyword(secure)
+        }
+
         // Contact info: tap to dial / email.
         binding.phoneRow.setOnClickListener {
             startSafely(
@@ -81,6 +87,32 @@ class SettingsActivity : BaseActivity() {
                 )
             )
         }
+    }
+
+    /** Lets the user pick a different word to type in search for opening the archive. */
+    private fun editArchiveKeyword(secure: SecureStore) {
+        val input = android.widget.EditText(this).apply {
+            setText(secure.archiveKeyword)
+            setSelection(text?.length ?: 0)
+        }
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0); addView(input)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.archive_keyword_label)
+            .setView(container)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val word = input.text.toString().trim()
+                if (word.isEmpty()) {
+                    android.widget.Toast.makeText(this, R.string.archive_keyword_empty, android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    secure.archiveKeyword = word
+                    binding.archiveKeywordValue.text = word
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun startSafely(intent: android.content.Intent) {

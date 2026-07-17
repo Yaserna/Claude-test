@@ -53,6 +53,13 @@
     <string name="search_hint">جستجوی پیام‌ها</string>
     <string name="delivered">دریافت شد</string>
     <string name="private_entry">Private</string>
+    <string name="archive">بایگانی</string>
+    <string name="archived_toast">به بایگانی رفت</string>
+    <string name="unarchived_toast">از بایگانی خارج شد</string>
+    <string name="section_archive">بایگانی</string>
+    <string name="archive_keyword_label">کلمه‌ی ورود به بایگانی</string>
+    <string name="archive_keyword_summary">این کلمه را در نوار جستجو بنویسید تا بایگانی باز شود</string>
+    <string name="archive_keyword_empty">کلمه نمی‌تواند خالی باشد</string>
 
     <string name="hidden_title">مخفی</string>
     <string name="add_hidden">افزودن شماره‌ی مخفی</string>

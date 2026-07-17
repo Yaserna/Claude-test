@@ -24,6 +24,32 @@
                 android:contentDescription="@string/settings"
                 android:src="@drawable/ic_gear" />
 
+            <!-- Appears (left of the gear) only when an archived chat has a new/unread
+                 message; tapping it opens the archive. -->
+            <FrameLayout
+                android:id="@+id/archiveButtonWrap"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center_vertical|end"
+                android:layout_marginEnd="60dp"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/archiveButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/archive"
+                    android:src="@drawable/ic_archive" />
+
+                <View
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/star_circle" />
+            </FrameLayout>
+
             <ImageButton
                 android:id="@+id/selectAllButton"
                 android:layout_width="48dp"
@@ -274,6 +300,31 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="@string/pin"
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/actionArchive"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingVertical="4dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@string/archive"
+                android:src="@drawable/ic_archive" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/archive"
                 android:textColor="@color/textSecondary"
                 android:textSize="12sp" />
         </LinearLayout>

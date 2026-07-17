@@ -34,6 +34,7 @@ class MainActivity : BaseActivity() {
     private lateinit var adapter: ConversationAdapter
     private var askedDefault = false
     private var allConvos: List<Conversation> = emptyList()
+    private var archivedConvos: List<Conversation> = emptyList()
     private var searchIndex: List<Pair<Conversation, String>> = emptyList()
     private val ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val fabHandler = Handler(Looper.getMainLooper())
@@ -151,6 +152,13 @@ class MainActivity : BaseActivity() {
         binding.actionDelete.setOnClickListener { applyToSelection(Action.DELETE) }
         binding.actionRead.setOnClickListener { applyToSelection(Action.READ) }
         binding.actionPin.setOnClickListener { applyToSelection(Action.PIN) }
+        binding.actionArchive.setOnClickListener { applyToSelection(Action.ARCHIVE) }
+
+        // The archive badge (shown only for unread archived chats) opens the archive.
+        binding.archiveButton.setOnClickListener {
+            binding.searchInput.setText(secure.archiveKeyword)
+            binding.searchInput.setSelection(binding.searchInput.text?.length ?: 0)
+        }
 
         binding.searchInput.addTextChangedListener { applyFilter(it?.toString().orEmpty()) }
 
@@ -204,7 +212,7 @@ class MainActivity : BaseActivity() {
         startActivity(i)
     }
 
-    private enum class Action { DELETE, READ, PIN }
+    private enum class Action { DELETE, READ, PIN, ARCHIVE }
 
     private fun applyToSelection(action: Action) {
         val ids = adapter.selectedThreadIds()
@@ -213,6 +221,9 @@ class MainActivity : BaseActivity() {
                 Action.DELETE -> repo.deleteThread(id)
                 Action.READ -> repo.markThreadRead(id)
                 Action.PIN -> secure.togglePin(id)
+                // Toggle: archiving a normal chat hides it; doing it on an archived
+                // chat (while viewing the archive) brings it back to the main list.
+                Action.ARCHIVE -> secure.setArchived(id, !secure.isArchived(id))
             }
         }
         adapter.exitSelection()
@@ -222,6 +233,7 @@ class MainActivity : BaseActivity() {
     private fun updateSelectionUi() {
         val on = adapter.selectionMode
         binding.settingsButton.visibility = if (on) View.GONE else View.VISIBLE
+        if (on) binding.archiveButtonWrap.visibility = View.GONE else updateArchiveBadge()
         binding.selectAllButton.visibility = if (on) View.VISIBLE else View.GONE
         binding.cancelButton.visibility = if (on) View.VISIBLE else View.GONE
         binding.searchBar.visibility = if (on) View.GONE else View.VISIBLE
@@ -310,6 +322,12 @@ class MainActivity : BaseActivity() {
             if (code.isNotEmpty() && secure.hasPin() && secure.checkPin(code)) View.VISIBLE
             else View.GONE
 
+        // Typing the archive keyword opens the archived conversations.
+        if (raw.isNotEmpty() && raw == secure.archiveKeyword) {
+            adapter.submit(archivedConvos)
+            return
+        }
+
         val q = raw.lowercase()
         if (q.isEmpty()) {
             adapter.submit(allConvos)
@@ -366,15 +384,25 @@ class MainActivity : BaseActivity() {
             != PackageManager.PERMISSION_GRANTED
         ) return
         ioExecutor.execute {
-            // 1) Load conversations and show them immediately.
-            val convos = repo.getConversations()
+            val all = repo.getConversations()
+            val archivedIds = secure.getArchived()
+            // 1) The main list (archived chats excluded) shows immediately.
+            val main = all.filter { it.threadId !in archivedIds }
                 .sortedByDescending { secure.isPinned(it.threadId) }
             runOnUiThread {
-                allConvos = convos
-                if (binding.searchInput.text.isNullOrEmpty()) adapter.submit(convos)
+                allConvos = main
+                if (binding.searchInput.text.isNullOrEmpty()) adapter.submit(main)
             }
-            // 2) Resolve contact names afterwards (for search), without blocking the list.
-            val index = convos.map {
+            // 2) Archived chats are processed AFTER the main list is on screen, so
+            //    startup stays light. They only feed the unread badge + archive view.
+            val archived = all.filter { it.threadId in archivedIds }
+                .sortedByDescending { it.date }
+            runOnUiThread {
+                archivedConvos = archived
+                updateArchiveBadge()
+            }
+            // 3) Resolve contact names afterwards (for search), without blocking the list.
+            val index = main.map {
                 it to (contacts.displayFor(it.address) + " " + it.snippet).lowercase()
             }
             runOnUiThread {
@@ -383,5 +411,11 @@ class MainActivity : BaseActivity() {
                 if (q.isNotEmpty()) applyFilter(q)
             }
         }
+    }
+
+    /** Show the archive badge (next to the gear) only when an archived chat is unread. */
+    private fun updateArchiveBadge() {
+        val show = !adapter.selectionMode && archivedConvos.any { it.unread }
+        binding.archiveButtonWrap.visibility = if (show) View.VISIBLE else View.GONE
     }
 }

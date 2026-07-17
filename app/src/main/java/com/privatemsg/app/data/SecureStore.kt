@@ -125,6 +125,26 @@ class SecureStore(context: Context) {
 
     fun isPinned(threadId: Long): Boolean = getPinned().contains(threadId)
 
+    // ---- Archived conversations (by thread id) ----
+
+    fun getArchived(): Set<Long> =
+        prefs.getStringSet(KEY_ARCHIVED, emptySet())?.mapNotNull { it.toLongOrNull() }?.toSet()
+            ?: emptySet()
+
+    fun isArchived(threadId: Long): Boolean = getArchived().contains(threadId)
+
+    fun setArchived(threadId: Long, archived: Boolean) {
+        val set = getArchived().toMutableSet()
+        if (archived) set.add(threadId) else set.remove(threadId)
+        prefs.edit().putStringSet(KEY_ARCHIVED, set.map { it.toString() }.toSet()).apply()
+    }
+
+    /** Word the user types in search to open the archive (default «بایگانی», editable). */
+    var archiveKeyword: String
+        get() = prefs.getString(KEY_ARCHIVE_WORD, null)?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_ARCHIVE_WORD
+        set(v) = prefs.edit().putString(KEY_ARCHIVE_WORD, v.trim()).apply()
+
     // ---- App settings ----
 
     var deliveryReportEnabled: Boolean
@@ -207,6 +227,9 @@ class SecureStore(context: Context) {
         private const val KEY_DECOY_TARGET = "decoy_target"
         private const val KEY_HIDDEN = "hidden_numbers"
         private const val KEY_PINNED = "pinned_threads"
+        private const val KEY_ARCHIVED = "archived_threads"
+        private const val KEY_ARCHIVE_WORD = "archive_keyword"
+        const val DEFAULT_ARCHIVE_WORD = "بایگانی"
         private const val KEY_DELIVERY = "delivery_report"
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_UI_SCALE = "ui_scale"
